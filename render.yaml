@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: calendario-equipe
+    runtime: static
+    buildCommand: echo "No build needed"
+    staticPublishPath: ./public
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
