@@ -734,128 +734,186 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 @media (max-width:768px){
   /* base */
-  body{padding:12px 10px;padding-bottom:72px}
-  html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+  body{padding:10px 8px;padding-bottom:72px}
+  html{-webkit-text-size-adjust:100%;overflow-x:hidden;scroll-behavior:smooth}
 
   /* hamburger visible */
   .mobile-hamburger{
     display:grid;place-items:center;
-    width:40px;height:40px;border:1.5px solid var(--ink);border-radius:50%;
+    width:44px;height:44px;border:1.5px solid var(--ink);border-radius:50%;
     background:var(--bg);cursor:pointer;color:var(--ink);
     -webkit-tap-highlight-color:transparent;
   }
 
   /* header compact */
-  .header{
-    gap:8px;margin-bottom:10px;
-  }
-  .month-title{font-size:24px;gap:6px}
+  .header{gap:6px;margin-bottom:8px}
+  .month-title{font-size:26px;gap:6px}
   .year{font-size:14px}
   .brand{display:none}
   .controls{gap:4px}
   .controls .icon-btn{display:none}
   .controls .view-toggle{order:10}
-  .view-toggle button{padding:6px 10px;font-size:11px}
-  .nav-btn{width:32px;height:32px;font-size:13px}
-  .nav-btn.wide{padding:0 10px;font-size:11px}
-  .clock{font-size:14px;padding:3px 10px}
+  .view-toggle button{padding:7px 12px;font-size:11px}
+  .nav-btn{width:36px;height:36px;font-size:14px}
+  .nav-btn.wide{padding:0 12px;font-size:12px}
+  .clock{font-size:14px;padding:4px 10px}
   .clock .clock-date{display:none}
   .clock .clock-sec{font-size:10px}
 
-  /* banner compact */
-  .banner{padding:10px 14px;margin-bottom:12px;gap:6px;grid-template-columns:1fr}
+  /* banner - hide quote, keep next event + weather */
+  .banner{padding:8px 12px;margin-bottom:8px;gap:8px;flex-direction:column}
   .banner-divider{display:none}
   .banner-item{flex-direction:row;align-items:center;gap:8px}
+  .banner-item:nth-child(3){display:none}
   .banner-label{font-size:9px;white-space:nowrap}
-  .banner-value{font-size:13px}
+  .banner-value{font-size:12px}
 
-  /* layout: no sidebar on mobile */
+  /* layout */
   .layout{grid-template-columns:1fr;gap:0;z-index:auto;position:static}
   .sidebar{
     display:flex !important;
-    position:fixed;top:0;left:0;bottom:0;width:280px;z-index:45;
+    position:fixed;top:0;left:0;bottom:0;width:min(300px,85vw);z-index:45;
     background:var(--bg);border-right:1.5px solid var(--ink);
     padding:20px 16px;overflow-y:auto;
-    transform:translateX(-100%);transition:transform .25s ease;
+    transform:translateX(-100%);transition:transform .3s cubic-bezier(0.4,0,0.2,1);
+    overscroll-behavior:contain;
   }
   .sidebar.drawer-open{transform:translateX(0)}
 
-  /* calendar grid mobile */
-  .weekdays{gap:2px;margin-bottom:6px;padding:0}
-  .weekdays div{font-size:10px;text-align:center}
-  .calendar{gap:3px}
+  /* calendar grid mobile - bigger, more readable */
+  .weekdays{gap:2px;margin-bottom:4px;padding:0}
+  .weekdays div{font-size:11px;text-align:center;font-weight:600;color:var(--ink)}
+  .calendar{gap:2px}
   .cell{
-    aspect-ratio:1/1.1;padding:4px 5px;border-width:1px;border-radius:4px;
-    -webkit-tap-highlight-color:transparent;min-height:0;
+    aspect-ratio:auto;min-height:56px;padding:4px 5px;border-width:1px;border-radius:5px;
+    -webkit-tap-highlight-color:transparent;
   }
   .cell.is-clickable:hover{transform:none;box-shadow:none}
-  .cell.is-clickable:active{background:var(--bg-2)}
-  .day-num{font-size:13px}
+  .cell.is-clickable:active{background:var(--bg-2);transform:scale(0.97)}
+  .cell.today{box-shadow:inset 0 0 0 1.5px var(--ink)}
+  .day-num{font-size:14px;font-weight:700}
   .day-marks{gap:2px}
-  .day-marks .holiday-dot{font-size:7px}
-  .day-marks .bday{font-size:9px}
-  .events{gap:1px}
-  .event{font-size:8px;padding:1px 3px;border-width:1px;gap:2px}
-  .event .ico{font-size:8px}
-  .event .time{font-size:7px}
-  .more-link{font-size:8px}
-  .workload-bar{height:2px}
+  .day-marks .holiday-dot{font-size:8px}
+  .day-marks .bday{font-size:10px}
+  .events{gap:2px}
+  .event{font-size:9px;padding:2px 4px;border-width:1px;gap:2px;border-radius:3px}
+  .event .ico{font-size:9px}
+  .event .time{font-size:8px}
+  .more-link{font-size:9px}
+  .workload-bar{height:3px}
+  .note-indicator{font-size:12px;bottom:2px;left:2px}
+  .note-tooltip{display:none !important}
 
-  /* week view mobile */
-  .week-view{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .week-head{grid-template-columns:40px repeat(7,minmax(60px,1fr))}
-  .week-grid{grid-template-columns:40px repeat(7,minmax(60px,1fr))}
-  .hour-row{height:36px;font-size:9px;padding:1px 2px}
-  .week-event{font-size:10px;padding:3px 4px}
+  /* week view mobile - horizontal scroll */
+  .week-view{overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}
+  .week-head{grid-template-columns:40px repeat(7,minmax(65px,1fr))}
+  .week-grid{grid-template-columns:40px repeat(7,minmax(65px,1fr))}
+  .hour-row{height:38px;font-size:9px;padding:2px 3px}
+  .week-event{font-size:10px;padding:3px 5px}
+  .week-event .we-title{font-size:10px}
 
   /* day view mobile */
   .day-view-head{padding:12px 14px}
   .day-view-head h2{font-size:18px}
   .day-view-grid{grid-template-columns:40px 1fr}
 
-  /* modals fullscreen */
+  /* modals - full bottom sheet with handle */
   .modal-backdrop{padding:0;align-items:flex-end}
   .modal{
-    max-width:100%;max-height:92vh;border-radius:16px 16px 0 0;
-    border-bottom:none;box-shadow:0 -4px 20px rgba(0,0,0,0.2);
-    padding:20px 16px;padding-bottom:max(20px, env(safe-area-inset-bottom));
-    animation:slideUp .25s ease;
+    max-width:100%;max-height:90vh;border-radius:20px 20px 0 0;
+    border-bottom:none;box-shadow:0 -8px 30px rgba(0,0,0,0.2);
+    padding:12px 16px 20px;padding-bottom:max(20px, env(safe-area-inset-bottom));
+    animation:slideUp .3s cubic-bezier(0.4,0,0.2,1);
+    overscroll-behavior:contain;
+  }
+  .modal::before{
+    content:'';display:block;width:36px;height:4px;border-radius:2px;
+    background:var(--muted);margin:0 auto 12px;
   }
   .modal.wide{max-width:100%}
   @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-  .modal h3{font-size:20px}
-  .modal .sub{font-size:12px;margin-bottom:14px}
-  .type-picker,.collab-picker{grid-template-columns:1fr 1fr;gap:4px}
-  .pick{padding:6px 8px;font-size:11px}
+  .modal h3{font-size:18px}
+  .modal .sub{font-size:12px;margin-bottom:12px}
+  .type-picker,.collab-picker{grid-template-columns:1fr 1fr;gap:5px}
+  .pick{padding:8px 10px;font-size:12px;min-height:44px}
   .form-row{grid-template-columns:1fr}
-  .form-group input,.form-group select,.form-group textarea{font-size:16px;padding:12px}
-  .btn{padding:12px 18px;font-size:14px;min-height:44px}
-  .btn.small{padding:10px 14px;font-size:12px;min-height:40px}
-  .modal-actions{gap:8px}
-  .existing-event{padding:12px}
-  .ee-actions{justify-content:stretch}
-  .ee-actions .btn.small{flex:1;justify-content:center}
-  .comment-input input{font-size:16px;padding:10px}
-  .comment-input button{padding:10px 14px;font-size:12px}
+  .form-group input,.form-group select,.form-group textarea{font-size:16px;padding:12px;border-radius:8px}
+  .btn{padding:14px 20px;font-size:14px;min-height:48px;border-radius:12px}
+  .btn.small{padding:10px 14px;font-size:13px;min-height:44px;border-radius:10px}
+  .btn.primary{font-weight:600}
+  .modal-actions{gap:8px;flex-direction:column}
+  .modal-actions .btn{width:100%;justify-content:center}
+  .existing-event{padding:14px;border-radius:10px}
+  .ee-actions{justify-content:stretch;gap:8px}
+  .ee-actions .btn.small{flex:1;justify-content:center;min-height:44px}
+  .comment-input{flex-direction:column;gap:8px}
+  .comment-input input{font-size:16px;padding:12px;border-radius:8px}
+  .comment-input button{padding:12px 16px;font-size:13px;border-radius:8px;width:100%}
 
   /* insights */
   .insights-grid{grid-template-columns:1fr}
 
-  /* login modal */
+  /* login modal centered */
   .modal-backdrop#loginModal{align-items:center;padding:16px}
-  #loginModal .modal{border-radius:16px;max-height:none;border-bottom:1.5px solid var(--ink);animation:pop .2s ease}
+  #loginModal .modal{border-radius:20px;max-height:none;border-bottom:1.5px solid var(--ink);animation:loginPop .4s cubic-bezier(0.34,1.56,0.64,1)}
+  #loginModal .modal::before{display:none}
 
-  /* bottom nav visible */
+  /* bottom nav */
   .bottom-nav{display:block}
+  .bottom-nav-inner{padding:0 8px}
+  .bnav-btn{padding:8px 14px;border-radius:10px;min-height:44px}
+  .bnav-btn svg{width:24px;height:24px}
+  .bnav-btn.active{background:var(--bg-2);font-weight:600}
 
-  /* toast above bottom nav */
-  .toast{bottom:80px}
+  /* toast */
+  .toast{bottom:82px;left:16px;right:16px;transform:none;text-align:center;border-radius:12px}
 
-  /* forecast mobile */
-  .forecast-grid{grid-template-columns:repeat(3,1fr)}
+  /* forecast */
+  .forecast-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  .forecast-day{padding:8px 4px}
   .weather-city-stats{flex-wrap:wrap;gap:10px}
   .weather-forecast-cities{gap:4px}
-  .weather-forecast-cities .btn.small{font-size:10px;padding:6px 8px}
+  .weather-forecast-cities .btn.small{font-size:11px;padding:8px 10px;min-height:36px}
+
+  /* request cards */
+  .request-card{border-radius:10px;padding:14px}
+  .request-card .rc-actions{flex-direction:column}
+  .request-card .rc-actions .btn.small{width:100%;justify-content:center}
+
+  /* personal note */
+  .personal-note textarea{font-size:16px;padding:12px;border-radius:8px;min-height:60px}
+  .note-icon-picker{gap:6px}
+  .note-ico-btn{width:40px;height:40px;font-size:20px;border-radius:8px}
+
+  /* viewer status picker */
+  .viewer-status-picker button{padding:8px 10px;font-size:11px;min-height:36px}
+
+  /* team toggle */
+  .team-toggle button{padding:8px 12px;font-size:12px}
+
+  /* meeting invites */
+  .request-card .btn.small{min-height:44px}
+
+  /* animations - reduce motion on mobile for performance */
+  .calendar .cell{animation-duration:.15s}
+  .event{animation:none}
+  .existing-event{animation-duration:.15s}
+}
+
+/* extra small phones */
+@media (max-width:380px){
+  body{padding:6px 4px;padding-bottom:68px}
+  .header{gap:4px}
+  .month-title{font-size:22px}
+  .nav-btn{width:32px;height:32px}
+  .clock{display:none}
+  .calendar{gap:1px}
+  .cell{min-height:48px;padding:3px 4px}
+  .day-num{font-size:12px}
+  .event{font-size:8px;padding:1px 3px}
+  .banner{padding:6px 8px}
+  .bnav-btn{padding:6px 8px;font-size:9px}
+  .bnav-btn svg{width:20px;height:20px}
 }
 </style>
 </head>
