@@ -834,11 +834,12 @@ window.storage = {
 
 // ============ CONSTANTES ============
 const COLLABS = {
-  joao:    { name:'João',    color:'color-joao',    cssVar:'--c-joao',    initial:'J' },
-  thayane: { name:'Thayane', color:'color-thayane', cssVar:'--c-thayane', initial:'T' },
-  lianda:  { name:'Lianda',  color:'color-lianda',  cssVar:'--c-lianda',  initial:'L' },
-  ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R' }
+  joao:    { name:'João',    color:'color-joao',    cssVar:'--c-joao',    initial:'J', photo:'João.jpg' },
+  thayane: { name:'Thayane', color:'color-thayane', cssVar:'--c-thayane', initial:'T', photo:'Thayane.png' },
+  lianda:  { name:'Lianda',  color:'color-lianda',  cssVar:'--c-lianda',  initial:'L', photo:'Lianda.png' },
+  ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R', photo:'Ravy.jpg' }
 };
+const ADMIN_USER = { name:'Suzana', photo:'Suzana.png' };
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const WEEKDAYS_FULL = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
 const WEEKDAYS_SHORT = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -1012,7 +1013,7 @@ function logHistory(action){
   state.history.unshift({
     id: uid(),
     when: new Date().toISOString(),
-    who: state.role === 'admin' ? 'Admin' : (state.viewerAs ? COLLABS[state.viewerAs].name : 'Colaborador'),
+    who: state.role === 'admin' ? ADMIN_USER.name : (state.viewerAs ? COLLABS[state.viewerAs].name : 'Colaborador'),
     action
   });
   if(state.history.length > 200) state.history = state.history.slice(0,200);
@@ -1247,8 +1248,10 @@ function paintWeather(c, source){
 function renderSidebar(){
   // role hint
   const loggedIn = state.role === 'admin' || state.viewerAs;
+  const currentName = state.role === 'admin' ? ADMIN_USER.name : (state.viewerAs ? COLLABS[state.viewerAs].name : '');
+  const currentPhoto = state.role === 'admin' ? ADMIN_USER.photo : (state.viewerAs ? COLLABS[state.viewerAs].photo : '');
   if(state.role === 'admin'){
-    $('#roleHint').textContent = 'Logado como Admin. Você pode criar, editar e excluir eventos.';
+    $('#roleHint').textContent = `Logado como ${ADMIN_USER.name}. Você pode criar, editar e excluir eventos.`;
   } else if(state.viewerAs){
     $('#roleHint').textContent = `Logado como ${COLLABS[state.viewerAs].name}. Você pode confirmar presença e comentar.`;
   } else {
@@ -1258,7 +1261,11 @@ function renderSidebar(){
   // login/logout toggle visual
   $('#loginBtn').classList.toggle('active', !loggedIn);
   $('#logoutBtn').classList.toggle('active', loggedIn);
-  $('#loginBtn').textContent = loggedIn ? (state.role === 'admin' ? 'Admin' : COLLABS[state.viewerAs].name) : 'Entrar';
+  if(loggedIn){
+    $('#loginBtn').innerHTML = `<img src="${currentPhoto}" alt="${currentName}" style="width:20px;height:20px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:4px">${currentName}`;
+  } else {
+    $('#loginBtn').textContent = 'Entrar';
+  }
   $('#logoutBtn').style.display = loggedIn ? '' : 'none';
 
   // colaboradores
@@ -1275,7 +1282,7 @@ function renderSidebar(){
     row.className = 'collab' + (isFiltering || isViewerAs ? ' filtering' : '');
     row.innerHTML = `
       <div class="avatar" style="background:var(${info.cssVar})">
-        ${info.initial}
+        <img src="${info.photo}" alt="${info.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         <span class="status-dot ${st.cls}" title="${st.label}"></span>
       </div>
       <div class="collab-info">
@@ -1862,7 +1869,7 @@ function renderExistingEvents(){
         commentsHTML += `<div style="font-size:11.5px;color:var(--ink-faint);font-family:Fraunces,serif;font-style:italic">Sem comentários.</div>`;
       } else {
         comments.forEach(co => {
-          const cwho = co.who === 'admin' ? 'Admin' : (COLLABS[co.who]?.name || co.who);
+          const cwho = co.who === 'admin' ? ADMIN_USER.name : (COLLABS[co.who]?.name || co.who);
           const dt = new Date(co.when);
           const when = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
           commentsHTML += `<div class="comment"><span class="who">${escapeHtml(cwho)}:</span><span style="flex:1">${escapeHtml(co.text)}</span><span class="when">${when}</span></div>`;
@@ -2284,8 +2291,8 @@ function tryLogin(){
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
-    toast('Bem-vindo, Admin');
-    logHistory('Fez login como Admin');
+    toast('Bem-vindo, ' + ADMIN_USER.name);
+    logHistory('Fez login como ' + ADMIN_USER.name);
   } else {
     state.role = 'viewer';
     state.viewerAs = userId;
