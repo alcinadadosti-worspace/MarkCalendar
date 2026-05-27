@@ -3083,7 +3083,8 @@ function saveEvent(){
     const ev = editingEvent;
     const oldTitle = ev.title;
     ev.title = title;
-    ev.collab = formSelectedCollab;
+    const editTaskCollabs = new Set(formTasks.map(t => t.collab));
+    ev.collab = editTaskCollabs.size > 1 ? 'todos' : formSelectedCollab;
     ev.type = formSelectedType;
     ev.startTime = start;
     ev.endTime = end;
@@ -3093,15 +3094,18 @@ function saveEvent(){
     ev.recurring = $('#eventRecurring').value;
     ev.pinned = $('#eventPinned').checked;
     ev.private = $('#eventPrivate').checked;
-    if(formTasks.length) ev.tasks = formTasks.map(t => ({collab:t.collab, text:t.text, done:t.done||false}));
+    ev.tasks = formTasks.map(t => ({collab:t.collab, text:t.text, done:t.done||false}));
     logHistory(`Editou "${oldTitle}" → "${title}"`);
     save('events');
     toast('Evento atualizado');
   } else {
+    // se tem tarefas para mais de 1 colaborador, evento vira "todos"
+    const taskCollabs = new Set(formTasks.map(t => t.collab));
+    const effectiveCollab = taskCollabs.size > 1 ? 'todos' : formSelectedCollab;
     const newEv = {
       id: uid(),
       title,
-      collab: formSelectedCollab,
+      collab: effectiveCollab,
       type: formSelectedType,
       startTime: start,
       endTime: end,
@@ -3149,7 +3153,7 @@ function saveEvent(){
       }
     }
 
-    logHistory(`Criou "${title}" para ${COLLABS[formSelectedCollab].name}`);
+    logHistory(`Criou "${title}" para ${COLLABS[effectiveCollab].name}`);
     save('events');
     toast(`✓ "${title}" criado para ${COLLABS[formSelectedCollab].name}${rec && rec !== 'none' ? ' + recorrências' : ''}`);
   }
