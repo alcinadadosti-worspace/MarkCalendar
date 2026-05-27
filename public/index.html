@@ -1721,6 +1721,7 @@ function startRealtimeSync(){
 
 // ============ HELPERS ============
 const $ = s => document.querySelector(s);
+function evVisibleTo(ev, who){ return ev.collab === who || ev.collab === 'todos' || (ev.tasks && ev.tasks.some(t => t.collab === who)); }
 const $$ = s => Array.from(document.querySelectorAll(s));
 const pad = n => String(n).padStart(2,'0');
 const keyOf = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
@@ -2389,14 +2390,14 @@ function renderMonth(){
     evWrap.className = 'events';
     let dayEvents = state.events[key] || [];
     if(state.showOnlyMine && state.viewerAs){
-      dayEvents = dayEvents.filter(e => e.collab === state.viewerAs || e.collab === 'todos');
+      dayEvents = dayEvents.filter(e => evVisibleTo(e, state.viewerAs));
     }
     const visible = dayEvents.slice(0, 3);
     visible.forEach(ev => {
       const c = COLLABS[ev.collab];
       const type = EVENT_TYPES[ev.type || 'outro'];
       const isDimmed = state.filterCollab && ev.collab !== state.filterCollab && !state.showOnlyMine;
-      const isTeamReadonly = state.viewMode === 'team' && state.viewerAs && ev.collab !== state.viewerAs && ev.collab !== 'todos';
+      const isTeamReadonly = state.viewMode === 'team' && state.viewerAs && !evVisibleTo(ev, state.viewerAs);
       const eEl = document.createElement('div');
       eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '') + (ev.completed ? ' completed' : '') + (isTeamReadonly ? ' team-readonly' : '');
       let timeBit = '';
@@ -2518,7 +2519,7 @@ function renderWeek(){
     // events
     let dayEvents = (state.events[key]||[]).slice();
     if(state.showOnlyMine && state.viewerAs){
-      dayEvents = dayEvents.filter(ev => ev.collab === state.viewerAs || ev.collab === 'todos');
+      dayEvents = dayEvents.filter(ev => evVisibleTo(ev, state.viewerAs));
     }
     dayEvents.forEach(ev => {
       const startT = ev.startTime || '09:00';
@@ -2604,7 +2605,7 @@ function renderDay(){
   }
   let dayEvents = (state.events[key]||[]).slice();
   if(state.showOnlyMine && state.viewerAs){
-    dayEvents = dayEvents.filter(ev => ev.collab === state.viewerAs || ev.collab === 'todos');
+    dayEvents = dayEvents.filter(ev => evVisibleTo(ev, state.viewerAs));
   }
   dayEvents.forEach(ev => {
     const startT = ev.startTime || '09:00';
@@ -2769,10 +2770,10 @@ function renderExistingEvents(){
   let list = state.events[activeDateKey] || [];
   // privacy: viewer só vê privados se for o dono
   if(state.role === 'viewer'){
-    list = list.filter(e => !e.private || e.collab === state.viewerAs || e.collab === 'todos');
+    list = list.filter(e => !e.private || evVisibleTo(e, state.viewerAs));
   }
   if(state.showOnlyMine && state.viewerAs){
-    list = list.filter(e => e.collab === state.viewerAs || e.collab === 'todos');
+    list = list.filter(e => evVisibleTo(e, state.viewerAs));
   }
 
   wrap.innerHTML = '';
@@ -2838,7 +2839,7 @@ function renderExistingEvents(){
     }
 
     let rsvpHTML = '';
-    if(state.role === 'viewer' && (state.viewerAs === ev.collab || ev.collab === 'todos')){
+    if(state.role === 'viewer' && evVisibleTo(ev, state.viewerAs)){
       if(myRSVP){
         rsvpHTML = `<div style="margin-top:4px"><span class="rsvp-status rsvp-${myRSVP==='yes'?'yes':'no'}">${myRSVP==='yes'?'✓ Presença confirmada':'✗ Presença recusada'}</span></div>`;
       } else {
@@ -2876,7 +2877,7 @@ function renderExistingEvents(){
           <button class="btn small danger" data-act="delete" data-id="${ev.id}">Excluir</button>
         </div>
       `;
-    } else if(state.role === 'viewer' && state.viewMode !== 'team' && (state.viewerAs === ev.collab || ev.collab === 'todos')){
+    } else if(state.role === 'viewer' && state.viewMode !== 'team' && evVisibleTo(ev, state.viewerAs)){
       const completeBtn = ev.completed
         ? `<span class="ee-completed">✅ Concluído</span>`
         : `<button class="btn small" data-act="complete" data-id="${ev.id}">✓ Concluir</button>`;
@@ -3083,8 +3084,7 @@ function saveEvent(){
     const ev = editingEvent;
     const oldTitle = ev.title;
     ev.title = title;
-    const editTaskCollabs = new Set(formTasks.map(t => t.collab));
-    ev.collab = editTaskCollabs.size > 1 ? 'todos' : formSelectedCollab;
+    ev.collab = formSelectedCollab;
     ev.type = formSelectedType;
     ev.startTime = start;
     ev.endTime = end;
@@ -3099,13 +3099,10 @@ function saveEvent(){
     save('events');
     toast('Evento atualizado');
   } else {
-    // se tem tarefas para mais de 1 colaborador, evento vira "todos"
-    const taskCollabs = new Set(formTasks.map(t => t.collab));
-    const effectiveCollab = taskCollabs.size > 1 ? 'todos' : formSelectedCollab;
     const newEv = {
       id: uid(),
       title,
-      collab: effectiveCollab,
+      collab: formSelectedCollab,
       type: formSelectedType,
       startTime: start,
       endTime: end,
@@ -3153,7 +3150,9 @@ function saveEvent(){
       }
     }
 
-    logHistory(`Criou "${title}" para ${COLLABS[effectiveCollab].name}`);
+    const taskNames = [...new Set(formTasks.map(t=>t.collab))].map(c=>COLLABS[c]?COLLABS[c].name:c);
+    const logTarget = taskNames.length > 1 ? taskNames.join(', ') : COLLABS[formSelectedCollab].name;
+    logHistory(`Criou "${title}" para ${logTarget}`);
     save('events');
     toast(`✓ "${title}" criado para ${COLLABS[formSelectedCollab].name}${rec && rec !== 'none' ? ' + recorrências' : ''}`);
   }
@@ -3547,7 +3546,7 @@ function renderSearch(query){
   const results = [];
   for(const [dateKey, evts] of Object.entries(state.events)){
     for(const ev of evts){
-      if(state.role === 'viewer' && state.viewerAs && ev.collab !== state.viewerAs && ev.collab !== 'todos') continue;
+      if(state.role === 'viewer' && state.viewerAs && !evVisibleTo(ev, state.viewerAs)) continue;
       const c = COLLABS[ev.collab];
       const type = EVENT_TYPES[ev.type || 'outro'];
       const haystack = [ev.title, ev.desc, c.name, type.label, ev.location, dateKey].join(' ').toLowerCase();
