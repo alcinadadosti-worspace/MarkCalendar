@@ -746,7 +746,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   }
 
   /* header compact */
-  .header{gap:6px;margin-bottom:8px}
+  .header{gap:6px;margin-bottom:8px;overflow:hidden}
   .month-title{font-size:26px;gap:6px}
   .year{font-size:14px}
   .brand{display:none}
@@ -760,13 +760,14 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   .clock .clock-date{display:none}
   .clock .clock-sec{font-size:10px}
 
-  /* banner - hide quote, keep next event + weather */
-  .banner{padding:8px 12px;margin-bottom:8px;gap:8px;flex-direction:column}
+  /* banner mobile */
+  .banner{padding:8px 12px;margin-bottom:8px;gap:6px;flex-direction:column;overflow:hidden}
   .banner-divider{display:none}
-  .banner-item{flex-direction:row;align-items:center;gap:8px}
-  .banner-item:nth-child(3){display:none}
-  .banner-label{font-size:9px;white-space:nowrap}
-  .banner-value{font-size:12px}
+  .banner-item{flex-direction:row;align-items:center;gap:8px;overflow:hidden}
+  .banner-item:nth-child(3),.banner-item:nth-child(4){display:none}
+  .banner-label{font-size:9px;white-space:nowrap;flex-shrink:0}
+  .banner-value{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .banner-value.italic{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   /* layout */
   .layout{grid-template-columns:1fr;gap:0;z-index:auto;position:static}
