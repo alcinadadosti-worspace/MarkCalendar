@@ -2735,12 +2735,18 @@ function rgbToHex(c){
 }
 
 // ============ LOGIN (Firebase Auth) ============
-function openLogin(){
+async function openLogin(){
   $('#loginPwd').value = '';
   $('#loginError').style.display = 'none';
-  $('#setupWrap').style.display = 'block';
+  $('#setupWrap').style.display = 'none';
   $('#loginModal').classList.add('open');
   setTimeout(()=>$('#loginPwd').focus(), 100);
+  try{
+    const snap = await db.collection('pinMap').doc('map').get();
+    if(!snap.exists) $('#setupWrap').style.display = 'block';
+  }catch(e){
+    $('#setupWrap').style.display = 'block';
+  }
 }
 
 async function hashPin(pin){
