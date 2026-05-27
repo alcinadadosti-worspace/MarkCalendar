@@ -2336,14 +2336,14 @@ function renderExistingEvents(){
     } else if(state.role === 'admin' && ev.rsvp){
       const rsvpEntries = Object.entries(ev.rsvp).filter(([k,v]) => COLLABS[k]);
       if(rsvpEntries.length){
-        rsvpHTML = '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
+        rsvpHTML = '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">';
         rsvpEntries.forEach(([k,v]) => {
           const icon = v === 'yes' ? '✓' : '✗';
-          rsvpHTML += `<span class="rsvp-status rsvp-${v==='yes'?'yes':'no'}">${icon} ${COLLABS[k].name}</span>`;
+          rsvpHTML += `<span class="rsvp-status rsvp-${v==='yes'?'yes':'no'}" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(${COLLABS[k].cssVar})">${icon} ${COLLABS[k].name}</span>`;
         });
         const pending = Object.keys(COLLABS).filter(k => !ev.rsvp[k]);
         pending.forEach(k => {
-          rsvpHTML += `<span class="rsvp-status rsvp-pending">? ${COLLABS[k].name}</span>`;
+          rsvpHTML += `<span class="rsvp-status rsvp-pending" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(--muted);opacity:0.5">? ${COLLABS[k].name}</span>`;
         });
         rsvpHTML += '</div>';
       }
