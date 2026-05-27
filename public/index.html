@@ -78,6 +78,13 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .year{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(24px,2.5vw,36px);letter-spacing:-0.01em}
 .brand{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:22px;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px}
 .brand .spark{width:16px;height:16px;background:var(--ink);clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%)}
+.logo-wrap{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:36px;height:36px;border-radius:50%;
+  background:var(--ink);border:1.5px solid var(--ink);
+  overflow:hidden;flex-shrink:0;
+}
+.logo-wrap img{width:85%;height:85%;object-fit:contain}
 
 .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nav-btn{
@@ -735,7 +742,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     </button>
   </div>
   <div class="brand">
-    <img src="logo.png" alt="Logo" style="width:32px;height:32px;object-fit:contain">
+    <span class="logo-wrap"><img src="logo.png" alt="Logo"></span>
     Calendário da Equipe
   </div>
 </header>
@@ -1086,7 +1093,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ LOGIN ============ -->
 <div class="modal-backdrop" id="loginModal">
   <div class="modal" style="max-width:380px">
-    <div style="text-align:center;margin-bottom:8px"><img src="logo.png" alt="Logo" style="width:64px;height:64px;object-fit:contain"></div>
+    <div style="text-align:center;margin-bottom:8px"><span class="logo-wrap" style="width:64px;height:64px"><img src="logo.png" alt="Logo"></span></div>
     <h3 style="text-align:center;justify-content:center">Entrar</h3>
     <p class="sub" style="text-align:center">Digite seu PIN de 4 dígitos</p>
     <div class="form-group" style="text-align:center">
