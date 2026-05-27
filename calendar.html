@@ -62,21 +62,20 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 /* ============ HEADER ============ */
 .header{
-  display:grid;
-  grid-template-columns: 1fr auto auto;
-  align-items:end;
-  gap:24px;
-  margin-bottom:24px;
+  display:flex;flex-wrap:wrap;align-items:center;
+  gap:16px;
+  margin-bottom:16px;
   position:relative;z-index:10;
 }
 .month-title{
   font-family:'Fraunces',serif;font-weight:800;
-  font-size:clamp(48px,6vw,80px);
-  letter-spacing:-0.03em;line-height:0.9;
-  display:flex;align-items:baseline;gap:20px;
+  font-size:clamp(36px,5vw,56px);
+  letter-spacing:-0.03em;line-height:1;
+  display:flex;align-items:baseline;gap:12px;
+  flex:1;min-width:0;
 }
-.year{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(24px,2.5vw,36px);letter-spacing:-0.01em}
-.brand{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:22px;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px}
+.year{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(18px,2vw,28px);letter-spacing:-0.01em;color:var(--ink-soft)}
+.brand{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:18px;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}
 .brand .spark{width:16px;height:16px;background:var(--ink);clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%)}
 .logo-wrap{
   display:inline-flex;align-items:center;justify-content:center;
@@ -104,6 +103,12 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 }
 .icon-btn:hover{background:var(--ink);color:var(--bg)}
 .icon-btn svg{width:16px;height:16px}
+.icon-btn[title]:hover::after{
+  content:attr(title);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);font-size:10px;padding:3px 8px;border-radius:4px;
+  white-space:nowrap;font-family:'Inter',sans-serif;font-weight:500;pointer-events:none;z-index:20;
+}
+.icon-btn{position:relative}
 
 /* clock */
 .clock{
@@ -138,19 +143,18 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   background:var(--bg-2);
   border:1.5px solid var(--ink);
   border-radius:8px;
-  padding:14px 20px;
-  margin-bottom:24px;
-  display:grid;
-  grid-template-columns: 1fr auto auto auto;
-  gap:24px;
+  padding:10px 16px;
+  margin-bottom:16px;
+  display:flex;flex-wrap:wrap;
+  gap:16px;
   align-items:center;
   position:relative;z-index:2;
 }
-.banner-item{display:flex;flex-direction:column;gap:2px}
-.banner-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-soft)}
-.banner-value{font-family:'Fraunces',serif;font-size:15px;font-weight:600;line-height:1.2}
-.banner-value.italic{font-style:italic;font-weight:500}
-.banner-divider{width:1px;height:30px;background:var(--ink);opacity:.2}
+.banner-item{display:flex;flex-direction:column;gap:1px;flex:1;min-width:120px}
+.banner-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-soft)}
+.banner-value{font-family:'Fraunces',serif;font-size:13px;font-weight:600;line-height:1.3}
+.banner-value.italic{font-style:italic;font-weight:500;font-size:12px}
+.banner-divider{width:1px;height:24px;background:var(--ink);opacity:.15;flex-shrink:0}
 .weather-mini{display:flex;align-items:center;gap:8px}
 .weather-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1.5px solid var(--muted);padding-bottom:8px}
 .weather-tab{border:none;background:transparent;padding:8px 16px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:var(--ink-soft);transition:all .2s ease}
@@ -322,7 +326,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   display:flex;flex-direction:column;cursor:pointer;
   transition:transform .12s ease,box-shadow .12s ease;overflow:hidden;
 }
-.cell.is-clickable:hover{transform:translate(-2px,-2px);box-shadow:var(--shadow)}
+.cell.is-clickable:hover{transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--ink);background:var(--bg-2)}
 .cell.muted{opacity:0.35;cursor:default}
 .cell.muted:hover{transform:none;box-shadow:none}
 .cell.today{background:var(--bg-2)}
@@ -503,6 +507,13 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 .empty-state{font-family:'Fraunces',serif;font-style:italic;color:var(--ink-soft);font-size:13px;margin-bottom:14px;text-align:center;padding:20px 0}
 
+/* view transitions */
+.calendar-wrap{animation:fadeSlide .2s ease}
+@keyframes fadeSlide{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* better toast */
+.toast{box-shadow:0 4px 12px rgba(0,0,0,0.2)}
+
 .readonly-note{background:var(--bg-2);border:1px dashed var(--ink);border-radius:6px;padding:12px 14px;font-family:'Fraunces',serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-top:8px}
 
 /* Insights modal */
@@ -628,11 +639,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
   /* header compact */
   .header{
-    grid-template-columns:auto 1fr auto;align-items:center;gap:10px;
-    margin-bottom:12px;
+    gap:8px;margin-bottom:10px;
   }
-  .month-title{font-size:28px;gap:8px}
-  .year{font-size:16px}
+  .month-title{font-size:24px;gap:6px}
+  .year{font-size:14px}
   .brand{display:none}
   .controls{gap:4px}
   .controls .icon-btn{display:none}
@@ -892,9 +902,9 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       Calendário
     </button>
-    <button class="bnav-btn" data-bnav="search">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      Buscar
+    <button class="bnav-btn" data-bnav="today">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><circle cx="12" cy="14" r="2"/><path d="M16 2v4M8 2v4"/></svg>
+      Hoje
     </button>
     <button class="bnav-btn" data-bnav="weather">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/><circle cx="12" cy="12" r="5"/></svg>
@@ -1211,9 +1221,9 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ LOGIN ============ -->
 <div class="modal-backdrop" id="loginModal">
   <div class="modal" style="max-width:380px">
-    <div style="text-align:center;margin-bottom:8px"><span class="logo-wrap" style="width:64px;height:64px"><img src="logo.png" alt="Logo"></span></div>
-    <h3 style="text-align:center;justify-content:center">Entrar</h3>
-    <p class="sub" style="text-align:center">Digite seu PIN de 4 dígitos</p>
+    <div style="text-align:center;margin-bottom:12px"><span class="logo-wrap" style="width:72px;height:72px"><img src="logo.png" alt="Logo"></span></div>
+    <h3 style="text-align:center;justify-content:center;font-size:22px">Calendário da Equipe</h3>
+    <p class="sub" style="text-align:center">Digite seu PIN de 4 dígitos para entrar</p>
     <div class="form-group" style="text-align:center">
       <input type="tel" id="loginPwd" autocomplete="one-time-code" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="text-align:center;font-size:28px;letter-spacing:12px;padding:14px 20px;max-width:200px;margin:0 auto;-webkit-text-security:disc">
     </div>
@@ -2824,7 +2834,7 @@ function saveEvent(){
 
     logHistory(`Criou "${title}" para ${COLLABS[formSelectedCollab].name}`);
     save('events');
-    toast(rec && rec !== 'none' ? 'Evento + recorrências criados' : 'Evento criado');
+    toast(`✓ "${title}" criado para ${COLLABS[formSelectedCollab].name}${rec && rec !== 'none' ? ' + recorrências' : ''}`);
   }
 
   resetForm();
@@ -3683,9 +3693,11 @@ function bindEvents(){
       if(action === 'calendar'){
         btn.classList.add('active');
         closeDrawer();
-      } else if(action === 'search'){
-        openDrawer();
-        setTimeout(() => { const si = $('#searchInput'); if(si) si.focus(); }, 300);
+      } else if(action === 'today'){
+        state.current = new Date();
+        if(state.view === 'month') state.current.setDate(1);
+        render();
+        closeDrawer();
       } else if(action === 'weather'){
         openWeatherModal();
       } else if(action === 'menu'){
