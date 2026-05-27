@@ -471,6 +471,8 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   box-shadow:var(--shadow-lg);
 }
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
 
 /* responsive desktop→tablet */
 @media (max-width:980px){
@@ -2823,22 +2825,53 @@ async function tryLogin(){
   // onAuthStateChanged handles the rest (loadAll, render, etc.)
 }
 
+const WELCOME_MESSAGES = {
+  admin: 'Pronta pra organizar o time? Seu painel de gestão está atualizado.',
+  joao: 'Bora fazer acontecer, João! Confira seus eventos do dia.',
+  thayane: 'Oi Thayane! Veja o que tem programado pra hoje.',
+  lianda: 'E aí Lianda! Seu calendário está te esperando.',
+  ravy: 'Fala Ravy! Dá uma olhada no que vem por aí.'
+};
+
 function applyUserRole(userInfo){
   if(userInfo.role === 'admin'){
     state.role = 'admin';
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
-    toast('Bem-vindo, ' + userInfo.name);
-    logHistory('Fez login como ' + userInfo.name);
   } else {
     state.role = 'viewer';
     state.viewerAs = userInfo.collabKey;
     state.filterCollab = userInfo.collabKey;
     state.showOnlyMine = true;
-    toast('Bem-vindo, ' + userInfo.name);
-    logHistory('Fez login como ' + userInfo.name);
   }
+  logHistory('Fez login como ' + userInfo.name);
+  showWelcome(userInfo);
+}
+
+function showWelcome(userInfo){
+  const key = userInfo.collabKey || 'admin';
+  const photo = userInfo.role === 'admin' ? ADMIN_USER.photo : COLLABS[key].photo;
+  const msg = WELCOME_MESSAGES[key] || 'Bem-vindo!';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Bom dia' : (hour < 18 ? 'Boa tarde' : 'Boa noite');
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(26,20,56,0.6);backdrop-filter:blur(4px);z-index:60;display:flex;align-items:center;justify-content:center;animation:fadeIn .3s ease';
+  overlay.innerHTML = `
+    <div style="background:var(--card);border:1.5px solid var(--ink);border-radius:16px;padding:32px;max-width:340px;width:90%;text-align:center;box-shadow:6px 6px 0 var(--ink);animation:pop .3s ease">
+      <img src="${photo}" alt="${userInfo.name}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:2px solid var(--ink);margin-bottom:14px">
+      <h3 style="font-family:'Fraunces',serif;font-weight:700;font-size:22px;margin-bottom:4px">${greeting}, ${userInfo.name}!</h3>
+      <p style="font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:var(--ink-soft);line-height:1.5;margin-bottom:18px">${msg}</p>
+      <button style="border:1.5px solid var(--ink);background:var(--ink);color:var(--bg);padding:10px 24px;border-radius:999px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer" id="welcomeClose">Vamos lá</button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#welcomeClose').addEventListener('click', () => {
+    overlay.style.animation = 'fadeOut .2s ease forwards';
+    setTimeout(() => overlay.remove(), 200);
+  });
+  setTimeout(() => { if(overlay.parentNode) overlay.querySelector('#welcomeClose').click(); }, 5000);
 }
 
 // ============ BUSCA ============
