@@ -110,6 +110,27 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .banner-value.italic{font-style:italic;font-weight:500}
 .banner-divider{width:1px;height:30px;background:var(--ink);opacity:.2}
 .weather-mini{display:flex;align-items:center;gap:8px}
+.weather-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1.5px solid var(--muted);padding-bottom:8px}
+.weather-tab{border:none;background:transparent;padding:8px 16px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:var(--ink-soft);transition:all .2s ease}
+.weather-tab.active{background:var(--ink);color:var(--bg)}
+.weather-city{border:1.5px solid var(--muted);border-radius:8px;padding:14px;margin-bottom:10px;transition:border-color .2s}
+.weather-city-you{border-color:var(--ink);background:var(--bg-2)}
+.weather-city-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.weather-city-stats{display:flex;gap:16px;font-size:13px;color:var(--ink-soft)}
+.weather-forecast-cities{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.forecast-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.forecast-day{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;border:1.5px solid var(--muted);border-radius:8px;text-align:center}
+.forecast-dayname{font-weight:600;font-size:12px}
+.forecast-date{font-size:11px;color:var(--ink-soft)}
+.forecast-temps{font-size:12px}
+.forecast-rain{font-size:11px;padding:2px 6px;border-radius:99px}
+.rain-low{background:#e8f5e9;color:#2e7d32}
+.rain-mid{background:#fff3e0;color:#e65100}
+.rain-high{background:#ffebee;color:#c62828}
+[data-theme="dark"] .rain-low{background:#1b3a1f;color:#81c784}
+[data-theme="dark"] .rain-mid{background:#3e2700;color:#ffb74d}
+[data-theme="dark"] .rain-high{background:#3e0f0f;color:#ef9a9a}
+@media(max-width:700px){.forecast-grid{grid-template-columns:repeat(3,1fr)}}
 .weather-icon{font-size:22px}
 
 /* ============ LAYOUT ============ */
@@ -503,8 +524,8 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <div class="banner-value italic" id="bannerQuote">—</div>
   </div>
   <div class="banner-divider"></div>
-  <div class="banner-item">
-    <span class="banner-label">Clima · Penedo/AL</span>
+  <div class="banner-item" style="cursor:pointer" id="bannerWeatherWrap" title="Clique para ver clima de todas as cidades">
+    <span class="banner-label" id="bannerWeatherLabel">Clima</span>
     <div class="banner-value italic" id="bannerWeather">—</div>
   </div>
 </div>
@@ -755,6 +776,18 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <div class="modal-actions">
       <button class="btn" id="settingsReset">Resetar cores</button>
       <button class="btn primary" id="settingsSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CLIMA ============ -->
+<div class="modal-backdrop" id="weatherModal">
+  <div class="modal wide">
+    <h3>🌤️ Clima — Unidades Alagoas</h3>
+    <p class="sub">Clima atual e previsão das cidades atendidas</p>
+    <div id="weatherBody"></div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="document.getElementById('weatherModal').classList.remove('open')">Fechar</button>
     </div>
   </div>
 </div>
@@ -1122,13 +1155,17 @@ function renderBanner(){
 
   $('#bannerQuote').innerHTML = '"' + escapeHtml(quoteOfTheDay()) + '" <span style="font-size:11px;color:var(--ink-soft);font-style:normal;font-family:\'Inter\',sans-serif;letter-spacing:0.05em;text-transform:uppercase;margin-left:4px">— O Caibalion</span>';
 
-  // clima real de Penedo/AL via Open-Meteo
-  renderWeather();
+  renderBannerWeather();
 }
 
-// Cache em memória — recarrega da API no máximo a cada 30 min
-let weatherCache = null;
-let weatherInFlight = null;
+// ============ CLIMA ============
+const CITIES = [
+  { id:'palmeira',  name:'Palmeira dos Índios', lat:-9.4081, lon:-36.6328 },
+  { id:'penedo',    name:'Penedo',              lat:-10.2874, lon:-36.5819 },
+  { id:'coruripe',  name:'Coruripe',            lat:-10.1264, lon:-36.1756 },
+  { id:'ssebastiao',name:'São Sebastião',       lat:-9.9322, lon:-36.5567 },
+  { id:'teotonio',  name:'Teotônio Vilela',     lat:-9.8939, lon:-36.3678 }
+];
 const WMO_CODES = {
   0:  { ico:'☀️', label:'Céu limpo' },
   1:  { ico:'🌤️', label:'Predominância de sol' },
@@ -1157,91 +1194,176 @@ const WMO_CODES = {
   96: { ico:'⛈️', label:'Tempestade com granizo' },
   99: { ico:'⛈️', label:'Tempestade severa' }
 };
+const WEEKDAYS_MINI = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
-async function renderWeather(){
-  const el = $('#bannerWeather');
-  if(!el) return;
+let weatherAllCache = {};
+let forecastCache = {};
+let userCity = null;
 
-  // usar cache se for recente
-  if(weatherCache && (Date.now() - weatherCache.fetchedAt < 30 * 60 * 1000)){
-    paintWeather(weatherCache.data, weatherCache.source);
-    return;
+function findNearestCity(lat, lon){
+  let best = CITIES[1];
+  let bestDist = Infinity;
+  for(const c of CITIES){
+    const d = Math.sqrt((c.lat-lat)**2 + (c.lon-lon)**2);
+    if(d < bestDist){ bestDist = d; best = c; }
   }
-
-  // se já está rodando uma requisição, espera ela em vez de criar outra
-  if(weatherInFlight){
-    try { await weatherInFlight; } catch(e) {}
-    if(weatherCache) paintWeather(weatherCache.data, weatherCache.source);
-    return;
-  }
-
-  // estado de loading discreto
-  el.innerHTML = `<span style="font-family:'Fraunces',serif;font-size:13px;font-style:italic;color:var(--ink-soft)">consultando...</span>`;
-
-  weatherInFlight = (async () => {
-    // Penedo, AL: -10.2874, -36.5819 — fuso América/Maceió
-    const baseUrl = 'https://api.open-meteo.com/v1/forecast?latitude=-10.2874&longitude=-36.5819&current=temperature_2m,weather_code,relative_humidity_2m&timezone=America/Maceio';
-
-    // 1ª tentativa: direto na Open-Meteo (funciona em sites com origem HTTPS normal)
-    // 2ª tentativa: através de proxy CORS público (funciona em iframes sandbox)
-    const attempts = [
-      baseUrl,
-      'https://corsproxy.io/?' + encodeURIComponent(baseUrl),
-      'https://api.allorigins.win/raw?url=' + encodeURIComponent(baseUrl)
-    ];
-
-    for(let i = 0; i < attempts.length; i++){
-      try{
-        const res = await fetch(attempts[i]);
-        if(!res.ok) throw new Error('HTTP ' + res.status);
-        const json = await res.json();
-        if(!json.current) throw new Error('sem dados');
-        weatherCache = { data: json.current, fetchedAt: Date.now(), source: 'api' };
-        paintWeather(json.current, 'api');
-        return;
-      } catch(e){
-        continue;
-      }
-    }
-
-    // Fallback final: estimativa climatológica de Penedo por mês
-    // Sempre usa o mês de hoje, não o mês exibido no calendário
-    const month = new Date().getMonth();
-    const climaMedio = [
-      { code:1, temp:28 },  // Jan
-      { code:1, temp:28 },  // Fev
-      { code:2, temp:27 },  // Mar
-      { code:61, temp:26 }, // Abr
-      { code:61, temp:25 }, // Mai
-      { code:63, temp:24 }, // Jun
-      { code:61, temp:23 }, // Jul
-      { code:2, temp:24 },  // Ago
-      { code:1, temp:26 },  // Set
-      { code:1, temp:27 },  // Out
-      { code:1, temp:28 },  // Nov
-      { code:1, temp:28 }   // Dez
-    ][month];
-    weatherCache = {
-      data: { weather_code: climaMedio.code, temperature_2m: climaMedio.temp, relative_humidity_2m: null },
-      fetchedAt: Date.now(),
-      source: 'fallback'
-    };
-    paintWeather(weatherCache.data, 'fallback');
-  })();
-
-  try { await weatherInFlight; }
-  finally { weatherInFlight = null; }
+  return best;
 }
 
-function paintWeather(c, source){
+async function fetchCityWeather(city){
+  if(weatherAllCache[city.id] && (Date.now() - weatherAllCache[city.id].fetchedAt < 30*60*1000)){
+    return weatherAllCache[city.id].data;
+  }
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Maceio`;
+  try {
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if(!json.current) throw new Error('sem dados');
+    weatherAllCache[city.id] = { data: json.current, fetchedAt: Date.now() };
+    return json.current;
+  } catch(e){
+    return null;
+  }
+}
+
+async function fetchCityForecast(city){
+  if(forecastCache[city.id] && (Date.now() - forecastCache[city.id].fetchedAt < 60*60*1000)){
+    return forecastCache[city.id].data;
+  }
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=America/Maceio&forecast_days=7`;
+  try {
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if(!json.daily) throw new Error('sem dados');
+    forecastCache[city.id] = { data: json.daily, fetchedAt: Date.now() };
+    return json.daily;
+  } catch(e){
+    return null;
+  }
+}
+
+async function initUserLocation(){
+  try {
+    const pos = await new Promise((ok, fail) => navigator.geolocation.getCurrentPosition(ok, fail, { timeout:8000 }));
+    userCity = findNearestCity(pos.coords.latitude, pos.coords.longitude);
+  } catch(e){
+    userCity = CITIES[1];
+  }
+  renderBannerWeather();
+}
+
+async function renderBannerWeather(){
   const el = $('#bannerWeather');
-  if(!el || !c) return;
-  const w = WMO_CODES[c.weather_code] || { ico:'🌡️', label:'Tempo atual' };
-  const temp = Math.round(c.temperature_2m);
-  const humid = c.relative_humidity_2m != null ? `, ${c.relative_humidity_2m}% umid.` : '';
-  const isFallback = source === 'fallback';
-  const note = isFallback ? ` <span style="font-size:10px;color:var(--ink-faint);font-style:italic" title="API offline — média histórica do mês">~média do mês</span>` : '';
-  el.innerHTML = `<span class="weather-icon">${w.ico}</span><span style="font-family:'Fraunces',serif;font-size:13px;font-style:italic">${w.label}, ${temp}°${humid}</span>${note}`;
+  const lbl = $('#bannerWeatherLabel');
+  if(!el) return;
+  const city = userCity || CITIES[1];
+  if(lbl) lbl.textContent = `Clima · ${city.name}/AL`;
+  el.innerHTML = `<span style="font-family:'Fraunces',serif;font-size:13px;font-style:italic;color:var(--ink-soft)">consultando...</span>`;
+  const data = await fetchCityWeather(city);
+  if(!data){
+    el.innerHTML = `<span style="font-family:'Fraunces',serif;font-size:13px;font-style:italic;color:var(--ink-faint)">indisponível</span>`;
+    return;
+  }
+  const w = WMO_CODES[data.weather_code] || { ico:'🌡️', label:'Tempo atual' };
+  const temp = Math.round(data.temperature_2m);
+  const humid = data.relative_humidity_2m != null ? `, ${data.relative_humidity_2m}%` : '';
+  el.innerHTML = `<span class="weather-icon">${w.ico}</span><span style="font-family:'Fraunces',serif;font-size:13px;font-style:italic">${w.label}, ${temp}°${humid}</span>`;
+}
+
+async function openWeatherModal(){
+  const body = $('#weatherBody');
+  body.innerHTML = '<p style="text-align:center;color:var(--ink-soft);font-style:italic">Carregando clima de todas as cidades...</p>';
+  $('#weatherModal').classList.add('open');
+
+  // Aba atual
+  let html = '<div class="weather-tabs"><button class="weather-tab active" data-wtab="now">Agora</button><button class="weather-tab" data-wtab="forecast">Previsão 7 dias</button></div>';
+  html += '<div id="weatherNow">';
+  const results = await Promise.all(CITIES.map(async c => ({ city:c, data: await fetchCityWeather(c) })));
+  for(const r of results){
+    const isUser = userCity && r.city.id === userCity.id;
+    if(r.data){
+      const w = WMO_CODES[r.data.weather_code] || { ico:'🌡️', label:'—' };
+      const wind = r.data.wind_speed_10m != null ? `${Math.round(r.data.wind_speed_10m)} km/h` : '';
+      html += `<div class="weather-city${isUser?' weather-city-you':''}">
+        <div class="weather-city-head">
+          <span class="weather-icon" style="font-size:28px">${w.ico}</span>
+          <div>
+            <strong>${r.city.name}${isUser?' (você está aqui)':''}</strong>
+            <span style="color:var(--ink-soft);font-size:12px;display:block">${w.label}</span>
+          </div>
+        </div>
+        <div class="weather-city-stats">
+          <span>🌡️ ${Math.round(r.data.temperature_2m)}°C</span>
+          <span>💧 ${r.data.relative_humidity_2m ?? '—'}%</span>
+          <span>💨 ${wind || '—'}</span>
+        </div>
+      </div>`;
+    } else {
+      html += `<div class="weather-city"><strong>${r.city.name}</strong> — <em style="color:var(--ink-faint)">indisponível</em></div>`;
+    }
+  }
+  html += '</div>';
+
+  // Aba previsão (oculta)
+  html += '<div id="weatherForecast" style="display:none"><p style="text-align:center;color:var(--ink-soft);font-style:italic">Selecione uma cidade para ver a previsão</p>';
+  html += '<div class="weather-forecast-cities">';
+  for(const c of CITIES){
+    html += `<button class="btn small weather-fc-btn" data-fcity="${c.id}">${c.name}</button>`;
+  }
+  html += '</div><div id="forecastDetail"></div></div>';
+
+  body.innerHTML = html;
+
+  // Tab switching
+  body.querySelectorAll('.weather-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      body.querySelectorAll('.weather-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('weatherNow').style.display = tab.dataset.wtab === 'now' ? '' : 'none';
+      document.getElementById('weatherForecast').style.display = tab.dataset.wtab === 'forecast' ? '' : 'none';
+    });
+  });
+
+  // Forecast city buttons
+  body.querySelectorAll('.weather-fc-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      body.querySelectorAll('.weather-fc-btn').forEach(b => b.classList.remove('primary'));
+      btn.classList.add('primary');
+      const city = CITIES.find(c => c.id === btn.dataset.fcity);
+      const detail = document.getElementById('forecastDetail');
+      detail.innerHTML = '<p style="text-align:center;color:var(--ink-soft);font-style:italic">Carregando previsão...</p>';
+      const fc = await fetchCityForecast(city);
+      if(!fc){ detail.innerHTML = '<p style="color:var(--danger)">Não foi possível carregar a previsão.</p>'; return; }
+      let fhtml = `<h4 style="font-family:'Fraunces',serif;font-weight:600;margin:14px 0 8px">📅 ${city.name} — próximos 7 dias</h4>`;
+      fhtml += '<div class="forecast-grid">';
+      for(let i = 0; i < fc.time.length; i++){
+        const d = new Date(fc.time[i] + 'T12:00:00');
+        const dayName = i === 0 ? 'Hoje' : WEEKDAYS_MINI[d.getDay()];
+        const dayNum = pad(d.getDate()) + '/' + pad(d.getMonth()+1);
+        const w = WMO_CODES[fc.weather_code[i]] || { ico:'🌡️', label:'—' };
+        const rain = fc.precipitation_probability_max[i];
+        const rainClass = rain >= 60 ? 'rain-high' : (rain >= 30 ? 'rain-mid' : 'rain-low');
+        fhtml += `<div class="forecast-day">
+          <span class="forecast-dayname">${dayName}</span>
+          <span class="forecast-date">${dayNum}</span>
+          <span style="font-size:24px">${w.ico}</span>
+          <span class="forecast-temps">${Math.round(fc.temperature_2m_min[i])}° / <strong>${Math.round(fc.temperature_2m_max[i])}°</strong></span>
+          <span class="forecast-rain ${rainClass}">🌧️ ${rain}%</span>
+        </div>`;
+      }
+      fhtml += '</div>';
+      detail.innerHTML = fhtml;
+    });
+  });
+
+  // Auto-selecionar cidade do usuario na aba previsao
+  if(userCity){
+    const autoBtn = body.querySelector(`[data-fcity="${userCity.id}"]`);
+    if(autoBtn) autoBtn.click();
+  }
+}
 }
 
 // ============ SIDEBAR ============
@@ -2301,6 +2423,7 @@ function tryLogin(){
   $('#loginModal').classList.remove('open');
   $('#appContent').style.display = '';
   render();
+  initUserLocation();
 }
 
 // ============ EXPORT ============
@@ -2413,6 +2536,7 @@ function bindEvents(){
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#printBtn').addEventListener('click', () => window.print());
   $('#exportBtn').addEventListener('click', exportJSON);
+  $('#bannerWeatherWrap').addEventListener('click', openWeatherModal);
 
   // settings save
   $('#settingsSave').addEventListener('click', () => {
