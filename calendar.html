@@ -1815,7 +1815,7 @@ function renderSummary(){
   const max = Math.max(1, ...Object.values(counts));
   const sum = $('#summary');
   sum.innerHTML = '';
-  Object.entries(COLLABS).forEach(([k, info]) => {
+  Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
     const val = counts[k];
     const pct = (val / max) * 100;
     const row = document.createElement('div');
@@ -2347,7 +2347,7 @@ function renderExistingEvents(){
           const icon = v === 'yes' ? '✓' : '✗';
           rsvpHTML += `<span class="rsvp-status rsvp-${v==='yes'?'yes':'no'}" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(${COLLABS[k].cssVar})">${icon} ${COLLABS[k].name}</span>`;
         });
-        const pending = Object.keys(COLLABS).filter(k => !ev.rsvp[k]);
+        const pending = Object.keys(COLLABS).filter(k => k !== 'todos' && !ev.rsvp[k]);
         pending.forEach(k => {
           rsvpHTML += `<span class="rsvp-status rsvp-pending" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(--muted);opacity:0.5">? ${COLLABS[k].name}</span>`;
         });
@@ -2646,8 +2646,8 @@ function openInsights(){
   const winner = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
 
   let chartHTML = '';
-  Object.entries(COLLABS).forEach(([k, info]) => {
-    const val = counts[k];
+  Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
+    const val = counts[k] || 0;
     const pct = (val/max)*100;
     chartHTML += `
       <div class="bar-chart-row">
@@ -2733,7 +2733,7 @@ function openStatus(){
   const todayStatuses = state.statuses[today] || {};
   let html = '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Defina o status de cada um para hoje:</p>';
 
-  Object.entries(COLLABS).forEach(([k, info]) => {
+  Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
     const current = todayStatuses[k] || 'office';
     html += `
       <div style="margin-bottom:14px">
