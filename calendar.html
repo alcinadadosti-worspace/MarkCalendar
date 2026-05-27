@@ -2860,9 +2860,14 @@ function detectConflicts(list){
 function deleteEvent(id){
   const list = state.events[activeDateKey] || [];
   const ev = list.find(x => x.id === id);
+  if(!ev) return;
+  if(!confirm(`Excluir "${ev.title}"?`)) return;
   state.events[activeDateKey] = list.filter(x => x.id !== id);
   if(state.events[activeDateKey].length === 0) delete state.events[activeDateKey];
-  if(ev) logHistory(`Excluiu "${ev.title}" (${COLLABS[ev.collab].name})`);
+  // limpar request associado se for reuniao
+  const relReq = (state.requests||[]).find(r => r.type === 'meeting' && r.status === 'approved' && r.suggestedDate === activeDateKey);
+  if(relReq){ relReq.status = 'cancelled'; relReq.resolvedAt = new Date().toISOString(); save('requests'); }
+  logHistory(`Excluiu "${ev.title}" (${COLLABS[ev.collab].name})`);
   save('events');
   renderExistingEvents();
   render();
@@ -3117,7 +3122,7 @@ function openStatus(){
           <div class="avatar" style="background:var(${info.cssVar});width:22px;height:22px;font-size:10px">${info.initial}</div>
           <strong style="font-size:13px">${info.name}</strong>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:4px">
           ${Object.entries(STATUS_LABELS).map(([s, sl]) => `
             <button class="pick" data-status="${s}" data-collab="${k}" style="font-size:11px;padding:6px;text-align:center;justify-content:center${current===s?';box-shadow:var(--shadow)':''}">
               <span class="dot ${sl.cls}" style="border-radius:50%"></span>
@@ -3496,12 +3501,17 @@ function resolveRequest(reqId, status){
 }
 
 // ============ PERSONAL NOTES ============
-function savePersonalNote(){
+async function savePersonalNote(){
   const key = activeDateKey;
   const userKey = state.role === 'admin' ? 'admin' : state.viewerAs;
   if(!userKey) return;
   const text = $('#personalNoteText').value.trim();
   const icon = (document.querySelector('.note-ico-btn.selected') || {}).dataset?.nico || '📝';
+  // reload notes from Firestore before merging to avoid overwriting other users
+  try{
+    const r = await window.storage.get('notes');
+    if(r && r.value) state.notes = JSON.parse(r.value);
+  }catch(e){}
   if(!state.notes[key]) state.notes[key] = {};
   if(text) state.notes[key][userKey] = { text, icon };
   else delete state.notes[key][userKey];
@@ -3558,7 +3568,8 @@ function submitMeetingRequest(){
 
 function respondMeetingRequest(reqId, response){
   const req = (state.requests||[]).find(r=>r.id===reqId);
-  if(!req || !req.responses) return;
+  if(!req || !req.responses || req.status !== 'pending') return;
+  if(req.responses[state.viewerAs] !== 'pending') return;
   req.responses[state.viewerAs] = response;
   const who = COLLABS[state.viewerAs].name;
   logHistory(`${who} ${response==='yes'?'aceitou':'recusou'} reunião de ${COLLABS[req.who].name}`);
