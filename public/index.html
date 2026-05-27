@@ -1272,33 +1272,30 @@ function renderSidebar(){
   const monthCounts = eventsByCollabInMonth(state.current.getFullYear(), state.current.getMonth());
   const collabWrap = $('#collabsList');
   collabWrap.innerHTML = '';
-  Object.entries(COLLABS).forEach(([key, info]) => {
+  const collabEntries = Object.entries(COLLABS).filter(([key]) => {
+    if(state.role === 'viewer' && state.viewerAs) return key === state.viewerAs;
+    return true;
+  });
+  collabEntries.forEach(([key, info]) => {
     const status = (state.statuses[todayKey] && state.statuses[todayKey][key]) || 'office';
     const st = STATUS_LABELS[status];
     const isFiltering = state.filterCollab === key;
-    const isViewerAs = state.viewerAs === key && state.role === 'viewer';
 
     const row = document.createElement('div');
-    row.className = 'collab' + (isFiltering || isViewerAs ? ' filtering' : '');
+    row.className = 'collab' + (isFiltering ? ' filtering' : '');
     row.innerHTML = `
       <div class="avatar" style="background:var(${info.cssVar})">
         <img src="${info.photo}" alt="${info.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         <span class="status-dot ${st.cls}" title="${st.label}"></span>
       </div>
       <div class="collab-info">
-        <span class="collab-name">${info.name}${isViewerAs ? ' (você)':''}</span>
+        <span class="collab-name">${info.name}</span>
         <span class="collab-status">${st.label}</span>
       </div>
       <span class="collab-count">${monthCounts[key]}</span>
     `;
     row.addEventListener('click', e => {
-      if(state.role === 'viewer'){
-        // viewer: clicar seleciona "ver como"
-        state.viewerAs = state.viewerAs === key ? null : key;
-        state.filterCollab = state.viewerAs;
-        state.showOnlyMine = !!state.viewerAs;
-      } else {
-        // admin: clicar filtra
+      if(state.role === 'admin'){
         state.filterCollab = state.filterCollab === key ? null : key;
       }
       render();
