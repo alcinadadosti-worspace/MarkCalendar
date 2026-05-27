@@ -949,6 +949,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div id="viewerStatusArea"></div>
       <div id="teamToggleArea"></div>
       <button class="btn small" id="requestMeetingBtn" style="display:none;margin-top:8px;width:100%">📅 Solicitar reunião</button>
+      <div id="meetingInvites"></div>
     </div>
 
     <div>
@@ -2004,9 +2005,37 @@ function renderSidebar(){
     } else { ttArea.innerHTML = ''; }
   }
 
-  // meeting request button
+  // meeting request button + invites
   const mrBtn = $('#requestMeetingBtn');
   if(mrBtn) mrBtn.style.display = state.viewerAs ? '' : 'none';
+  const invWrap = $('#meetingInvites');
+  if(invWrap && state.viewerAs){
+    const myInvites = (state.requests||[]).filter(r =>
+      r.type === 'meeting' && r.status === 'pending' && r.responses && r.responses[state.viewerAs] === 'pending'
+    );
+    if(myInvites.length){
+      invWrap.innerHTML = '<h2 class="panel-title" style="font-size:14px;margin-top:12px">📬 Convites</h2>' +
+        myInvites.map(r => {
+          const from = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
+          const photo = COLLABS[r.who] ? COLLABS[r.who].photo : '';
+          const photoHtml = photo ? `<img src="${photo}" style="width:20px;height:20px;border-radius:50%;object-fit:cover">` : '';
+          return `<div class="request-card pending" style="font-size:12px">
+            <div style="display:flex;align-items:center;gap:6px">${photoHtml}<strong>${from}</strong> te convidou</div>
+            <div style="color:var(--ink-soft);font-size:11px;margin:4px 0">${r.suggestedDate} às ${r.suggestedTime}${r.note ? ' · '+escapeHtml(r.note) : ''}</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn small" data-invite-yes="${r.id}">✓ Aceitar</button>
+              <button class="btn small danger" data-invite-no="${r.id}">✗ Recusar</button>
+            </div>
+          </div>`;
+        }).join('');
+      invWrap.querySelectorAll('[data-invite-yes]').forEach(b => {
+        b.addEventListener('click', () => respondMeetingRequest(b.dataset.inviteYes, 'yes'));
+      });
+      invWrap.querySelectorAll('[data-invite-no]').forEach(b => {
+        b.addEventListener('click', () => respondMeetingRequest(b.dataset.inviteNo, 'no'));
+      });
+    } else { invWrap.innerHTML = ''; }
+  } else if(invWrap){ invWrap.innerHTML = ''; }
 
   // colaboradores
   const monthCounts = eventsByCollabInMonth(state.current.getFullYear(), state.current.getMonth());
@@ -3384,14 +3413,22 @@ function openRequestsModal(){
       </div>`;
     } else if(r.type === 'meeting'){
       const cols = (r.colleagues||[]).map(k=>COLLABS[k]?COLLABS[k].name:k).join(', ');
+      let respHtml = '';
+      if(r.responses){
+        respHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">';
+        Object.entries(r.responses).forEach(([k,v]) => {
+          const name = COLLABS[k] ? COLLABS[k].name : k;
+          const icon = v === 'yes' ? '✅' : (v === 'no' ? '❌' : '⏳');
+          respHtml += `<span class="rsvp-status rsvp-${v==='yes'?'yes':(v==='no'?'no':'pending')}">${icon} ${name}</span>`;
+        });
+        respHtml += '</div>';
+      }
       html += `<div class="request-card pending">
         <div class="rc-head">${photoHtml}<strong>${who}</strong></div>
-        <div class="rc-meta">Solicita reunião com <strong>${cols}</strong> em ${r.suggestedDate} às ${r.suggestedTime}</div>
+        <div class="rc-meta">Convidou <strong>${cols}</strong> para reunião em ${r.suggestedDate} às ${r.suggestedTime}</div>
         ${r.note ? `<div class="rc-meta">Obs: ${escapeHtml(r.note)}</div>` : ''}
-        <div class="rc-actions">
-          <button class="btn small" data-req-approve="${r.id}">✓ Aprovar</button>
-          <button class="btn small danger" data-req-deny="${r.id}">✗ Negar</button>
-        </div>
+        ${respHtml}
+        <div class="rc-meta" style="margin-top:4px;font-style:normal;color:var(--ink-faint)">Aguardando resposta dos convidados</div>
       </div>`;
     }
   });
@@ -3500,16 +3537,53 @@ function submitMeetingRequest(){
   const colleagues = Array.from($$('#meetingCollabPicker .pick.selected')).map(b => b.dataset.mcollab);
   if(!colleagues.length){ toast('Selecione pelo menos um participante'); return; }
   if(!state.requests) state.requests = [];
+  const responses = {};
+  colleagues.forEach(c => { responses[c] = 'pending'; });
   state.requests.push({
-    id: uid(), type:'meeting', who: state.viewerAs, colleagues,
+    id: uid(), type:'meeting', who: state.viewerAs, colleagues, responses,
     suggestedDate: $('#meetingDate').value, suggestedTime: $('#meetingTime').value,
     note: $('#meetingNote').value.trim(), status:'pending', createdAt: new Date().toISOString(),
     resolvedAt:null, eventId:null
   });
   save('requests');
-  logHistory(`${COLLABS[state.viewerAs].name} solicitou reunião`);
+  logHistory(`${COLLABS[state.viewerAs].name} convidou ${colleagues.map(c=>COLLABS[c].name).join(', ')} para reunião`);
   $('#meetingRequestModal').classList.remove('open');
-  toast('Solicitação enviada!');
+  toast('Convite enviado!');
+}
+
+function respondMeetingRequest(reqId, response){
+  const req = (state.requests||[]).find(r=>r.id===reqId);
+  if(!req || !req.responses) return;
+  req.responses[state.viewerAs] = response;
+  const who = COLLABS[state.viewerAs].name;
+  logHistory(`${who} ${response==='yes'?'aceitou':'recusou'} reunião de ${COLLABS[req.who].name}`);
+
+  // verificar se todos aceitaram
+  const allResponded = Object.values(req.responses).every(v => v !== 'pending');
+  const allAccepted = Object.values(req.responses).every(v => v === 'yes');
+  if(allAccepted){
+    req.status = 'approved';
+    req.resolvedAt = new Date().toISOString();
+    const k = req.suggestedDate;
+    const participants = [req.who, ...req.colleagues].map(c=>COLLABS[c]?COLLABS[c].name:c).join(', ');
+    const newEv = {
+      id: uid(), title:'Reunião: '+participants,
+      collab:'todos', type:'reuniao', startTime:req.suggestedTime, endTime:addHour(req.suggestedTime),
+      desc:(req.note||'')+' (aceita por todos)', link:'', location:'', recurring:'none', pinned:false, private:false,
+      createdAt:new Date().toISOString(), rsvp:{}, comments:[]
+    };
+    if(!state.events[k]) state.events[k] = [];
+    state.events[k].push(newEv);
+    save('events');
+    logHistory(`Reunião confirmada: ${participants} em ${k}`);
+    toast('Todos aceitaram! Reunião criada.');
+  } else if(allResponded){
+    req.status = 'denied';
+    req.resolvedAt = new Date().toISOString();
+    toast('Reunião não confirmada (nem todos aceitaram).');
+  }
+  save('requests');
+  render();
 }
 
 // ============ EXPORT ============
