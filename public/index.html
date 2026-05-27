@@ -513,10 +513,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <div>
       <h2 class="panel-title">Acesso</h2>
       <div class="role-toggle" id="roleToggle">
-        <button data-role="admin">Admin</button>
-        <button data-role="viewer" class="active">Colaborador</button>
+        <button data-role="login" id="loginBtn" class="active">Entrar</button>
+        <button data-role="logout" id="logoutBtn">Sair</button>
       </div>
-      <p class="admin-hint" id="roleHint">Modo apenas leitura.</p>
+      <p class="admin-hint" id="roleHint">Faça login para acessar.</p>
       <label class="checkbox-row" style="margin-top:6px;font-size:12px">
         <input type="checkbox" id="showOnlyMine">
         Mostrar só meus eventos
@@ -761,17 +761,14 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <div class="modal-backdrop" id="loginModal">
   <div class="modal" style="max-width:380px">
     <div class="lock-icon">🔐</div>
-    <h3 style="text-align:center;justify-content:center">Acesso de Admin</h3>
-    <p class="sub" style="text-align:center">Digite a senha para gerenciar eventos</p>
+    <h3 style="text-align:center;justify-content:center">Entrar</h3>
+    <p class="sub" style="text-align:center">Digite sua senha para acessar o calendário</p>
     <div class="form-group">
       <label>Senha</label>
       <input type="password" id="loginPwd" autocomplete="off" placeholder="••••••••">
     </div>
     <div id="loginError" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;text-align:center;margin-bottom:8px">
       Senha incorreta. Tente novamente.
-    </div>
-    <div style="font-size:11px;color:var(--ink-faint);text-align:center;font-family:Fraunces,serif;font-style:italic;margin-bottom:14px">
-      dica: a senha padrão é <code style="background:var(--bg-2);padding:1px 6px;border-radius:3px;font-family:monospace">admin123</code>
     </div>
     <div class="modal-actions" style="justify-content:center">
       <button class="btn" id="loginCancel">Cancelar</button>
@@ -935,7 +932,13 @@ const QUOTES = [
   'Sob, e por trás de tudo, sempre se haverá de encontrar a Verdade Fundamental.'
 ];
 
-const ADMIN_PASSWORD = 'admin123'; // troque livremente
+const USER_PASSWORDS = {
+  admin:   '7766',
+  joao:    '1010',
+  thayane: '1212',
+  lianda:  '2323',
+  ravy:    '8080'
+};
 
 // ============ ESTADO ============
 let state = {
@@ -1242,14 +1245,20 @@ function paintWeather(c, source){
 // ============ SIDEBAR ============
 function renderSidebar(){
   // role hint
-  $('#roleHint').textContent = state.role === 'admin'
-    ? 'Você pode criar, editar e excluir eventos. Clique em qualquer dia.'
-    : (state.viewerAs
-        ? `Logado como ${COLLABS[state.viewerAs].name}. Você pode confirmar presença e comentar.`
-        : 'Modo apenas leitura. Selecione um colaborador abaixo para confirmar eventos.');
+  const loggedIn = state.role === 'admin' || state.viewerAs;
+  if(state.role === 'admin'){
+    $('#roleHint').textContent = 'Logado como Admin. Você pode criar, editar e excluir eventos.';
+  } else if(state.viewerAs){
+    $('#roleHint').textContent = `Logado como ${COLLABS[state.viewerAs].name}. Você pode confirmar presença e comentar.`;
+  } else {
+    $('#roleHint').textContent = 'Faça login para acessar.';
+  }
 
-  // role toggle visual
-  $$('#roleToggle button').forEach(b => b.classList.toggle('active', b.dataset.role === state.role));
+  // login/logout toggle visual
+  $('#loginBtn').classList.toggle('active', !loggedIn);
+  $('#logoutBtn').classList.toggle('active', loggedIn);
+  $('#loginBtn').textContent = loggedIn ? (state.role === 'admin' ? 'Admin' : COLLABS[state.viewerAs].name) : 'Entrar';
+  $('#logoutBtn').style.display = loggedIn ? '' : 'none';
 
   // colaboradores
   const monthCounts = eventsByCollabInMonth(state.current.getFullYear(), state.current.getMonth());
@@ -2262,7 +2271,14 @@ function openLogin(){
 }
 function tryLogin(){
   const pwd = $('#loginPwd').value;
-  if(pwd === ADMIN_PASSWORD){
+  const match = Object.entries(USER_PASSWORDS).find(([, p]) => p === pwd);
+  if(!match){
+    $('#loginError').style.display = 'block';
+    $('#loginPwd').value = '';
+    return;
+  }
+  const [userId] = match;
+  if(userId === 'admin'){
     state.role = 'admin';
     state.viewerAs = null;
     state.filterCollab = null;
@@ -2270,11 +2286,16 @@ function tryLogin(){
     $('#loginModal').classList.remove('open');
     toast('Bem-vindo, Admin');
     logHistory('Fez login como Admin');
-    render();
   } else {
-    $('#loginError').style.display = 'block';
-    $('#loginPwd').value = '';
+    state.role = 'viewer';
+    state.viewerAs = userId;
+    state.filterCollab = userId;
+    state.showOnlyMine = true;
+    $('#loginModal').classList.remove('open');
+    toast('Bem-vindo, ' + COLLABS[userId].name);
+    logHistory('Fez login como ' + COLLABS[userId].name);
   }
+  render();
 }
 
 // ============ EXPORT ============
@@ -2325,20 +2346,19 @@ function bindEvents(){
     });
   });
 
-  // role toggle
-  $$('#roleToggle button').forEach(b => {
-    b.addEventListener('click', () => {
-      if(b.dataset.role === 'admin' && state.role !== 'admin'){
-        openLogin();
-      } else {
-        state.role = b.dataset.role;
-        if(state.role === 'viewer'){
-          state.filterCollab = state.viewerAs;
-          state.showOnlyMine = !!state.viewerAs;
-        }
-        render();
-      }
-    });
+  // login/logout buttons
+  $('#loginBtn').addEventListener('click', () => {
+    const loggedIn = state.role === 'admin' || state.viewerAs;
+    if(!loggedIn) openLogin();
+  });
+  $('#logoutBtn').addEventListener('click', () => {
+    state.role = 'viewer';
+    state.viewerAs = null;
+    state.filterCollab = null;
+    state.showOnlyMine = false;
+    toast('Sessão encerrada');
+    logHistory('Fez logout');
+    render();
   });
 
   // pickers
@@ -2410,8 +2430,6 @@ function bindEvents(){
   $('#loginPwd').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
   $('#loginCancel').addEventListener('click', () => {
     $('#loginModal').classList.remove('open');
-    state.role = 'viewer';
-    render();
   });
 
   // mostrar só meus
