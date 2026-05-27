@@ -1194,7 +1194,6 @@ const WMO_CODES = {
   96: { ico:'⛈️', label:'Tempestade com granizo' },
   99: { ico:'⛈️', label:'Tempestade severa' }
 };
-const WEEKDAYS_MINI = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
 let weatherAllCache = {};
 let forecastCache = {};
@@ -1340,7 +1339,7 @@ async function openWeatherModal(){
       fhtml += '<div class="forecast-grid">';
       for(let i = 0; i < fc.time.length; i++){
         const d = new Date(fc.time[i] + 'T12:00:00');
-        const dayName = i === 0 ? 'Hoje' : WEEKDAYS_MINI[d.getDay()];
+        const dayName = i === 0 ? 'Hoje' : WEEKDAYS_SHORT[d.getDay()];
         const dayNum = pad(d.getDate()) + '/' + pad(d.getMonth()+1);
         const w = WMO_CODES[fc.weather_code[i]] || { ico:'🌡️', label:'—' };
         const rain = fc.precipitation_probability_max[i];
