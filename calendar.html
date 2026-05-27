@@ -1050,20 +1050,9 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   <div class="modal" style="max-width:380px">
     <div class="lock-icon">🔐</div>
     <h3 style="text-align:center;justify-content:center">Entrar</h3>
-    <p class="sub" style="text-align:center">Selecione seu nome e digite a senha</p>
-    <div class="form-group">
-      <label>Usuário</label>
-      <select id="loginUser">
-        <option value="admin">Suzana (Admin)</option>
-        <option value="joao">João</option>
-        <option value="thayane">Thayane</option>
-        <option value="lianda">Lianda</option>
-        <option value="ravy">Ravy</option>
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Senha</label>
-      <input type="password" id="loginPwd" autocomplete="off" placeholder="••••••••">
+    <p class="sub" style="text-align:center">Digite seu PIN de 4 dígitos</p>
+    <div class="form-group" style="text-align:center">
+      <input type="password" id="loginPwd" autocomplete="off" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="text-align:center;font-size:28px;letter-spacing:12px;padding:14px 20px;max-width:200px;margin:0 auto">
     </div>
     <div id="loginError" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;text-align:center;margin-bottom:8px"></div>
     <div class="modal-actions" style="justify-content:center">
@@ -2795,25 +2784,44 @@ async function setupAccounts(){
 }
 
 async function tryLogin(){
-  const userId = $('#loginUser').value;
-  const pwd = $('#loginPwd').value;
-  const userInfo = AUTH_USERS[userId];
-  if(!userInfo || !pwd){ $('#loginError').textContent = 'Preencha a senha.'; $('#loginError').style.display = 'block'; return; }
+  const pin = $('#loginPwd').value;
+  if(!pin || pin.length < 4){
+    $('#loginError').textContent = 'Digite seu PIN de 4 dígitos.';
+    $('#loginError').style.display = 'block';
+    return;
+  }
+  $('#loginSubmit').textContent = 'Entrando...';
+  $('#loginSubmit').disabled = true;
 
-  try{
-    await auth.signInWithEmailAndPassword(userInfo.email, pwd);
-  }catch(e){
-    let msg = 'Senha incorreta.';
-    if(e.code === 'auth/user-not-found') msg = 'Conta não encontrada. Clique em "Configurar contas" abaixo.';
-    else if(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = 'Senha incorreta. Tente novamente.';
-    else if(e.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde um momento.';
-    $('#loginError').textContent = msg;
+  let matched = null;
+  for(const [id, info] of Object.entries(AUTH_USERS)){
+    try{
+      await auth.signInWithEmailAndPassword(info.email, pin);
+      matched = info;
+      break;
+    }catch(e){
+      if(e.code === 'auth/too-many-requests'){
+        $('#loginError').textContent = 'Muitas tentativas. Aguarde um momento.';
+        $('#loginError').style.display = 'block';
+        $('#loginSubmit').textContent = 'Entrar';
+        $('#loginSubmit').disabled = false;
+        return;
+      }
+      continue;
+    }
+  }
+
+  $('#loginSubmit').textContent = 'Entrar';
+  $('#loginSubmit').disabled = false;
+
+  if(!matched){
+    $('#loginError').textContent = 'PIN incorreto.';
     $('#loginError').style.display = 'block';
     $('#loginPwd').value = '';
     return;
   }
 
-  applyUserRole(userInfo);
+  applyUserRole(matched);
   $('#loginModal').classList.remove('open');
   $('#appContent').style.display = '';
   startRealtimeSync();
