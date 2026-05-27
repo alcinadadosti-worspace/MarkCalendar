@@ -257,7 +257,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .ee-completed{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--success);font-weight:600}
 
 /* personal notes */
-.note-dot{width:5px;height:5px;border-radius:50%;background:var(--warn);display:inline-block;margin-left:2px}
+.note-dot{font-size:10px;display:inline-block;margin-left:2px}
 .personal-note{margin-top:12px;padding-top:12px;border-top:1px dashed var(--muted)}
 .personal-note textarea{width:100%;min-height:50px;border:1px solid var(--muted);border-radius:6px;padding:8px 10px;font-family:'Fraunces',serif;font-style:italic;font-size:12.5px;background:var(--bg);color:var(--ink);resize:vertical;outline:none}
 .personal-note textarea:focus{border-color:var(--ink)}
@@ -2071,7 +2071,7 @@ function renderMonth(){
     if(holiday) marks.innerHTML += `<span class="holiday-dot" title="${escapeHtml(holiday)}">feriado</span>`;
     if(bdayCol && !muted) marks.innerHTML += `<span class="bday" title="Aniversário de ${COLLABS[bdayCol].name}">🎂</span>`;
     const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
-    if(noteUser && state.notes[key] && state.notes[key][noteUser]) marks.innerHTML += '<span class="note-dot" title="Você tem uma nota"></span>';
+    if(noteUser && state.notes[key] && state.notes[key][noteUser]) marks.innerHTML += '<span class="note-dot" title="Você tem uma nota">📝</span>';
     header.appendChild(marks);
     cell.appendChild(header);
 
