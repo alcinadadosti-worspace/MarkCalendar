@@ -296,6 +296,15 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .request-card .rc-meta{font-size:11px;color:var(--ink-soft);font-family:'Fraunces',serif;font-style:italic}
 .request-card .rc-actions{display:flex;gap:6px;margin-top:8px}
 
+/* task assignment */
+.task-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--muted);border-radius:6px;font-size:12px;background:var(--card);animation:fadeSlide .2s ease}
+.task-item .task-text{flex:1}
+.task-item .task-remove{border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
+.task-item .task-remove:hover{background:var(--danger);color:#fff}
+.task-check{display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 0}
+.task-check input{width:16px;height:16px;accent-color:var(--ink)}
+.task-check.done .task-label{text-decoration:line-through;opacity:.6}
+
 /* upcoming */
 .upcoming{display:flex;flex-direction:column;gap:8px}
 .upcoming-card{
@@ -1138,6 +1147,18 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
           <button class="pick" data-collab="lianda"><span class="dot" style="background:var(--c-lianda)"></span>Lianda</button>
           <button class="pick" data-collab="ravy"><span class="dot" style="background:var(--c-ravy)"></span>Ravy</button>
           <button class="pick" data-collab="todos" style="grid-column:1/-1"><span class="dot" style="background:var(--c-todos)"></span>★ Todos (equipe inteira)</button>
+        </div>
+      </div>
+
+      <div id="taskAssignWrap" style="display:none" class="form-group">
+        <label>Tarefas do colaborador</label>
+        <div id="taskAssignCard" style="border:1.5px solid var(--muted);border-radius:8px;padding:12px;background:var(--bg)">
+          <div id="taskAssignHeader" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;font-weight:600"></div>
+          <div id="taskAssignList" style="display:flex;flex-direction:column;gap:4px"></div>
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <input type="text" id="taskAssignInput" placeholder="Ex: gravar, editar, roteiro..." maxlength="60" style="flex:1;padding:8px 10px;border:1px solid var(--muted);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
+            <button class="btn small" id="taskAssignAddBtn" type="button">+ Adicionar</button>
+          </div>
         </div>
       </div>
 
@@ -2639,6 +2660,7 @@ function renderFestive(){
 let activeDateKey = null;
 let editingEvent = null;
 let formSelectedCollab = 'joao';
+let formTasks = [];
 let formSelectedType = 'reuniao';
 
 function openModal(key){
@@ -2702,7 +2724,9 @@ function resetForm(){
   $('#eventPrivate').checked = false;
   formSelectedCollab = 'joao';
   formSelectedType = 'reuniao';
+  formTasks = [];
   updatePickerSelections();
+  updateTaskAssignCard();
   $('#saveBtn').textContent = 'Adicionar evento';
   editingEvent = null;
 }
@@ -2720,7 +2744,9 @@ function fillFormFor(ev){
   $('#eventPrivate').checked = !!ev.private;
   formSelectedCollab = ev.collab;
   formSelectedType = ev.type || 'reuniao';
+  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? t : t.text);
   updatePickerSelections();
+  updateTaskAssignCard();
   $('#saveBtn').textContent = 'Salvar alterações';
   $('#eventTitle').focus();
 }
@@ -2778,6 +2804,18 @@ function renderExistingEvents(){
     if(ev.link) linkLine = `<a class="ee-link" href="${escapeHtml(ev.link)}" target="_blank" rel="noopener">${escapeHtml(ev.link)}</a>`;
     let locLine = ev.location ? `<div class="ee-meta">📍 ${escapeHtml(ev.location)}</div>` : '';
     let descLine = ev.desc ? `<div class="ee-desc">${escapeHtml(ev.desc)}</div>` : '';
+    let tasksLine = '';
+    if(ev.tasks && ev.tasks.length){
+      tasksLine = '<div style="margin-top:6px"><span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft)">Tarefas</span>';
+      tasksLine += ev.tasks.map((t,i) => {
+        const task = typeof t === 'string' ? {text:t, done:false} : t;
+        return `<div class="task-check${task.done?' done':''}">
+          <input type="checkbox" data-task-ev="${ev.id}" data-task-i="${i}" ${task.done?'checked':''}>
+          <span class="task-label">${escapeHtml(task.text)}</span>
+        </div>`;
+      }).join('');
+      tasksLine += '</div>';
+    }
 
     let rsvpHTML = '';
     if(state.role === 'viewer' && (state.viewerAs === ev.collab || ev.collab === 'todos')){
@@ -2867,6 +2905,7 @@ function renderExistingEvents(){
       </div>
       ${locLine}
       ${descLine}
+      ${tasksLine}
       ${linkLine}
       ${rsvpHTML}
       ${commentsHTML}
@@ -2893,6 +2932,17 @@ function renderExistingEvents(){
       renderExistingEvents();
       render();
       toast('Evento concluído!');
+    });
+  });
+  container.querySelectorAll('[data-task-ev]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===cb.dataset.taskEv);
+      if(!ev || !ev.tasks) return;
+      const idx = +cb.dataset.taskI;
+      if(typeof ev.tasks[idx] === 'string') ev.tasks[idx] = {text:ev.tasks[idx], done:false};
+      ev.tasks[idx].done = cb.checked;
+      save('events');
+      renderExistingEvents();
     });
   });
   container.querySelectorAll('[data-act="swap"]').forEach(b => {
@@ -3023,6 +3073,7 @@ function saveEvent(){
     ev.recurring = $('#eventRecurring').value;
     ev.pinned = $('#eventPinned').checked;
     ev.private = $('#eventPrivate').checked;
+    if(formTasks.length) ev.tasks = formTasks.map(t => ({text:t, done:false}));
     logHistory(`Editou "${oldTitle}" → "${title}"`);
     save('events');
     toast('Evento atualizado');
@@ -3042,7 +3093,8 @@ function saveEvent(){
       private: $('#eventPrivate').checked,
       createdAt: new Date().toISOString(),
       rsvp: {},
-      comments: []
+      comments: [],
+      tasks: formTasks.length ? formTasks.map(t => ({text:t, done:false})) : []
     };
     if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
     state.events[activeDateKey].push(newEv);
@@ -3427,6 +3479,43 @@ function showWelcome(userInfo){
   setTimeout(() => { if(overlay.parentNode) overlay.querySelector('#welcomeClose').click(); }, 5000);
 }
 
+// ============ TASK ASSIGNMENT ============
+function updateTaskAssignCard(){
+  const wrap = $('#taskAssignWrap');
+  if(!wrap) return;
+  if(formSelectedCollab === 'todos' || !formSelectedCollab){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const c = COLLABS[formSelectedCollab];
+  const photo = c.photo ? `<img src="${c.photo}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:1.5px solid var(${c.cssVar})">` : '';
+  $('#taskAssignHeader').innerHTML = `${photo} O que <strong>${c.name}</strong> deve fazer?`;
+  renderTaskList();
+}
+function renderTaskList(){
+  const list = $('#taskAssignList');
+  list.innerHTML = formTasks.map((t,i) => `
+    <div class="task-item">
+      <span class="task-text">${escapeHtml(t)}</span>
+      <button class="task-remove" data-task-idx="${i}" title="Remover">&times;</button>
+    </div>
+  `).join('');
+  if(!formTasks.length) list.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma tarefa ainda</span>';
+  list.querySelectorAll('.task-remove').forEach(b => {
+    b.addEventListener('click', () => {
+      formTasks.splice(+b.dataset.taskIdx, 1);
+      renderTaskList();
+    });
+  });
+}
+function addTaskAssign(){
+  const input = $('#taskAssignInput');
+  const text = input.value.trim();
+  if(!text) return;
+  formTasks.push(text);
+  input.value = '';
+  renderTaskList();
+  input.focus();
+}
+
 // ============ BUSCA ============
 function renderSearch(query){
   const wrap = $('#searchResults');
@@ -3801,7 +3890,9 @@ function bindEvents(){
   $('#collabPicker').addEventListener('click', e => {
     const btn = e.target.closest('.pick'); if(!btn) return;
     formSelectedCollab = btn.dataset.collab;
+    formTasks = [];
     updatePickerSelections();
+    updateTaskAssignCard();
   });
   $('#typePicker').addEventListener('click', e => {
     const btn = e.target.closest('.pick'); if(!btn) return;
@@ -3854,6 +3945,8 @@ function bindEvents(){
   $('#meetingSubmitBtn').addEventListener('click', submitMeetingRequest);
   $('#meetingCancelBtn').addEventListener('click', () => $('#meetingRequestModal').classList.remove('open'));
   $('#saveNoteBtn').addEventListener('click', savePersonalNote);
+  $('#taskAssignAddBtn').addEventListener('click', addTaskAssign);
+  $('#taskAssignInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addTaskAssign(); } });
   $('#deleteNoteBtn').addEventListener('click', deletePersonalNote);
   $('#noteIconPicker').addEventListener('click', e => {
     const btn = e.target.closest('.note-ico-btn'); if(!btn) return;
