@@ -1,8 +1,9 @@
-var CACHE_NAME = 'cal-equipe-v2';
+var CACHE_NAME = 'cal-equipe-v3';
 var STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/logo.png',
   '/icon-192.svg',
   '/icon-512.svg',
   '/Suzana.png',
