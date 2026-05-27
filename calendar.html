@@ -2288,7 +2288,7 @@ function renderExistingEvents(){
     list = list.filter(e => !e.private || e.collab === state.viewerAs || e.collab === 'todos');
   }
   if(state.showOnlyMine && state.viewerAs){
-    list = list.filter(e => e.collab === state.viewerAs);
+    list = list.filter(e => e.collab === state.viewerAs || e.collab === 'todos');
   }
 
   wrap.innerHTML = '';
