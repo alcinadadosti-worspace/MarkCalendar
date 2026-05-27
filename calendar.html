@@ -12,7 +12,9 @@
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="dns-prefetch" href="https://api.open-meteo.com">
+<link rel="dns-prefetch" href="https://firestore.googleapis.com">
 <style>/* ============ TOKENS ============ */
 :root{
   --bg:#FBF8F1;
@@ -48,6 +50,7 @@
   --card:#1F1B3A;
 }
 
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;transition:background .25s ease,color .25s ease}
 body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
@@ -85,6 +88,9 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   overflow:hidden;flex-shrink:0;
 }
 .logo-wrap img{width:85%;height:85%;object-fit:contain}
+.online-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.online-dot.on{background:#2e7d32}
+.online-dot.off{background:var(--danger);animation:badgePulse 2s ease infinite}
 
 .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .nav-btn{
@@ -854,11 +860,12 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 </style>
 </head>
 <body>
+<a href="#monthGrid" class="sr-only" style="position:absolute;top:-100px;left:0;background:var(--ink);color:var(--bg);padding:8px 16px;z-index:999;font-size:14px" onfocus="this.style.top='0'" onblur="this.style.top='-100px'">Ir para o calendário</a>
 
-<div class="festive" id="festive"></div>
+<div class="festive" id="festive" aria-hidden="true"></div>
 
-<div id="appContent" style="display:none">
-<header class="header">
+<div id="appContent" style="display:none" role="application" aria-label="Calendário da Equipe">
+<header class="header" role="banner">
   <button class="mobile-hamburger" id="menuBtn" aria-label="Menu">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
   </button>
@@ -905,6 +912,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   <div class="brand">
     <span class="logo-wrap"><img src="logo.png" alt="Logo"></span>
     Calendário da Equipe
+    <span class="online-dot on" id="onlineStatus" title="Online"></span>
   </div>
 </header>
 
@@ -927,7 +935,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 </div>
 
 <div class="layout">
-  <aside class="sidebar">
+  <aside class="sidebar" role="complementary" aria-label="Painel lateral">
     <div>
       <h2 class="panel-title">Acesso</h2>
       <div class="role-toggle" id="roleToggle">
@@ -978,7 +986,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div class="weekdays">
         <div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sáb</div>
       </div>
-      <div class="calendar" id="monthGrid"></div>
+      <div class="calendar" id="monthGrid" role="grid" aria-label="Calendário mensal"></div>
     </div>
 
     <div id="weekView" class="week-view" style="display:none">
@@ -1558,11 +1566,43 @@ async function loadAll(){
   }
 }
 let localSaveCount = 0;
+let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
+
 async function save(key){
   localSaveCount++;
-  try{ await window.storage.set(key, JSON.stringify(state[key])); }
-  catch(e){ console.error('save fail', key, e); }
+  localStorage.setItem('cache_' + key, JSON.stringify(state[key]));
+  try{
+    await window.storage.set(key, JSON.stringify(state[key]));
+    updateOnlineStatus(true);
+  }catch(e){
+    console.warn('save offline, queued:', key);
+    if(!offlineQueue.includes(key)) offlineQueue.push(key);
+    localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+    updateOnlineStatus(false);
+  }
   setTimeout(() => { localSaveCount = Math.max(0, localSaveCount-1); }, 1500);
+}
+
+async function flushOfflineQueue(){
+  if(!offlineQueue.length) return;
+  const queue = [...offlineQueue];
+  offlineQueue = [];
+  localStorage.setItem('offlineQueue', '[]');
+  for(const key of queue){
+    try{ await window.storage.set(key, JSON.stringify(state[key])); }
+    catch(e){ offlineQueue.push(key); }
+  }
+  if(offlineQueue.length) localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
+  else toast('Dados sincronizados!');
+  updateOnlineStatus(!offlineQueue.length);
+}
+
+function updateOnlineStatus(online){
+  const dot = $('#onlineStatus');
+  if(dot){
+    dot.className = 'online-dot ' + (online ? 'on' : 'off');
+    dot.title = online ? 'Online' : 'Offline — mudanças serão sincronizadas';
+  }
 }
 
 function startRealtimeSync(){
@@ -1611,6 +1651,8 @@ function toast(msg){
   const old = $('.toast'); if(old) old.remove();
   const t = document.createElement('div');
   t.className = 'toast';
+  t.setAttribute('role','alert');
+  t.setAttribute('aria-live','polite');
   t.textContent = msg;
   document.body.appendChild(t);
   setTimeout(()=>t.remove(), 2400);
@@ -2210,7 +2252,7 @@ function renderMonth(){
     if(key === todayKey) cell.classList.add('today');
     if(isWeekend && !muted) cell.classList.add('weekend');
     if(holiday) cell.classList.add('holiday');
-    if(!muted) cell.classList.add('is-clickable');
+    if(!muted){ cell.classList.add('is-clickable'); cell.tabIndex = 0; cell.setAttribute('role','gridcell'); cell.setAttribute('aria-label', `${dayNum} de ${MONTHS_PT[dateM]}, ${(state.events[key]||[]).length} eventos`); }
     cell.dataset.key = key;
 
     // workload bar (top)
@@ -2303,6 +2345,9 @@ function renderMonth(){
       cell.addEventListener('click', (e) => {
         if(e.target.closest('[draggable="true"]')) return;
         openModal(key);
+      });
+      cell.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openModal(key); }
       });
       if(state.role === 'admin'){
         cell.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; cell.classList.add('drag-over'); });
@@ -3876,6 +3921,12 @@ function bindEvents(){
   tickClock();
   setInterval(tickClock, 1000);
 
+
+  // ============ OFFLINE SYNC ============
+  window.addEventListener('online', () => { updateOnlineStatus(true); flushOfflineQueue(); });
+  window.addEventListener('offline', () => { updateOnlineStatus(false); });
+  updateOnlineStatus(navigator.onLine);
+  if(navigator.onLine) flushOfflineQueue();
 
   // ============ MOBILE ============
   const isMobile = () => window.innerWidth <= 768;
