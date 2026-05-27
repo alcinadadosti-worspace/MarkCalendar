@@ -1938,7 +1938,13 @@ function renderMonth(){
       eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '');
       let timeBit = '';
       if(ev.startTime) timeBit = `<span class="time">${ev.startTime}</span>`;
-      eEl.innerHTML = `${timeBit}<span class="ico">${type.ico}</span><span>${escapeHtml(ev.title)}</span>`;
+      let rsvpBit = '';
+      if(ev.rsvp){
+        const r = ev.rsvp[ev.collab];
+        if(r === 'yes') rsvpBit = '<span style="margin-left:auto;font-size:9px" title="Confirmado">✅</span>';
+        else if(r === 'no') rsvpBit = '<span style="margin-left:auto;font-size:9px" title="Recusado">❌</span>';
+      }
+      eEl.innerHTML = `${timeBit}<span class="ico">${type.ico}</span><span>${escapeHtml(ev.title)}</span>${rsvpBit}`;
       if(state.role === 'admin'){
         eEl.draggable = true;
         eEl.dataset.eventId = ev.id;
@@ -2327,9 +2333,20 @@ function renderExistingEvents(){
           ${myRSVP ? `<span class="rsvp-status rsvp-${myRSVP==='yes'?'yes':'no'}">${myRSVP==='yes'?'Confirmado':'Recusado'}</span>` : ''}
         </div>
       `;
-    } else if(state.role === 'admin' && ev.rsvp && ev.rsvp[ev.collab]){
-      const r = ev.rsvp[ev.collab];
-      rsvpHTML = `<div style="margin-top:4px"><span class="rsvp-status rsvp-${r==='yes'?'yes':'no'}">${COLLABS[ev.collab].name} ${r==='yes'?'confirmou':'recusou'}</span></div>`;
+    } else if(state.role === 'admin' && ev.rsvp){
+      const rsvpEntries = Object.entries(ev.rsvp).filter(([k,v]) => COLLABS[k]);
+      if(rsvpEntries.length){
+        rsvpHTML = '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
+        rsvpEntries.forEach(([k,v]) => {
+          const icon = v === 'yes' ? '✓' : '✗';
+          rsvpHTML += `<span class="rsvp-status rsvp-${v==='yes'?'yes':'no'}">${icon} ${COLLABS[k].name}</span>`;
+        });
+        const pending = Object.keys(COLLABS).filter(k => !ev.rsvp[k]);
+        pending.forEach(k => {
+          rsvpHTML += `<span class="rsvp-status rsvp-pending">? ${COLLABS[k].name}</span>`;
+        });
+        rsvpHTML += '</div>';
+      }
     }
 
     let actionsHTML = '';
