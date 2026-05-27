@@ -74,6 +74,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   display:flex;align-items:baseline;gap:12px;
   flex:1;min-width:0;
 }
+#monthName{display:inline-block;animation:titleIn .3s ease}
 .year{font-family:'Fraunces',serif;font-weight:400;font-size:clamp(18px,2vw,28px);letter-spacing:-0.01em;color:var(--ink-soft)}
 .brand{font-family:'Fraunces',serif;font-style:italic;font-weight:600;font-size:18px;letter-spacing:-0.01em;display:flex;align-items:center;gap:8px}
 .brand .spark{width:16px;height:16px;background:var(--ink);clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%)}
@@ -329,9 +330,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .cell.is-clickable:hover{transform:translate(-1px,-1px);box-shadow:2px 2px 0 var(--ink);background:var(--bg-2)}
 .cell.muted{opacity:0.35;cursor:default}
 .cell.muted:hover{transform:none;box-shadow:none}
-.cell.today{background:var(--bg-2)}
-.cell.today .day-num{color:var(--ink)}
-.cell.today::before{content:"";position:absolute;top:6px;right:6px;width:6px;height:6px;border-radius:50%;background:var(--ink)}
+.cell.today{background:var(--bg-2);box-shadow:inset 0 0 0 2px var(--ink)}
+.cell.today .day-num{color:var(--ink);font-weight:800}
+.cell.today::before{content:"";position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--danger);animation:todayPulse 2s ease infinite}
+@keyframes todayPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.4);opacity:.5}}
 .cell.holiday{background:linear-gradient(135deg, var(--card) 0%, var(--card) 92%, var(--ink) 92%, var(--ink) 100%)}
 .cell.weekend .day-num{color:var(--danger);opacity:.6}
 
@@ -365,10 +367,11 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 .workload-bar{
   position:absolute;top:0;left:0;right:0;height:3px;
-  display:flex;
+  display:flex;overflow:hidden;
 }
-.workload-bar > span{flex:1;border-right:1px solid var(--bg)}
+.workload-bar > span{flex:1;border-right:1px solid var(--bg);animation:barGrow .4s ease both}
 .workload-bar > span:last-child{border-right:none}
+@keyframes barGrow{from{transform:scaleX(0);transform-origin:left}to{transform:scaleX(1)}}
 
 /* ============ WEEK VIEW ============ */
 .week-view{border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;background:var(--card)}
@@ -537,6 +540,41 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 /* calendar wrap transitions */
 @keyframes slideFromLeft{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
 @keyframes slideFromRight{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes titleIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+
+/* week events float in */
+.week-event{animation:weekEvtIn .3s ease both}
+@keyframes weekEvtIn{from{opacity:0;transform:translateY(6px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* now line glow */
+.now-line{animation:nowGlow 2s ease infinite}
+@keyframes nowGlow{0%,100%{box-shadow:0 0 4px var(--danger)}50%{box-shadow:0 0 12px var(--danger)}}
+
+/* chip tags bounce */
+.ee-meta .chip{animation:chipIn .2s ease both}
+@keyframes chipIn{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+
+/* comment slide in */
+.comment{animation:commentIn .2s ease both}
+@keyframes commentIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+
+/* login modal special */
+#loginModal .modal{animation:loginPop .4s cubic-bezier(0.34,1.56,0.64,1)}
+@keyframes loginPop{from{opacity:0;transform:scale(0.85) translateY(20px)}to{opacity:1;transform:scale(1) translateY(0)}}
+
+/* welcome overlay */
+@keyframes welcomeZoom{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+
+/* banner item stagger */
+.banner-item{animation:bannerIn .3s ease both}
+.banner-item:nth-child(1){animation-delay:0s}
+.banner-item:nth-child(3){animation-delay:.05s}
+.banner-item:nth-child(5){animation-delay:.1s}
+@keyframes bannerIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* drag visual feedback */
+.cell.drag-over{animation:dragPulse .4s ease infinite alternate}
+@keyframes dragPulse{from{background:var(--bg-2)}to{background:var(--c-todos)}}
 
 /* hover micro-interactions */
 .cell.is-clickable{transition:transform .15s ease,box-shadow .15s ease,background .15s ease}
@@ -3494,10 +3532,9 @@ function exportJSON(){
 
 function animateNav(dir){
   const wrap = document.querySelector('.calendar-wrap');
-  if(!wrap) return;
-  wrap.style.animation = 'none';
-  wrap.offsetHeight;
-  wrap.style.animation = dir === 'prev' ? 'slideFromLeft .25s ease' : 'slideFromRight .25s ease';
+  if(wrap){ wrap.style.animation = 'none'; wrap.offsetHeight; wrap.style.animation = dir === 'prev' ? 'slideFromLeft .25s ease' : 'slideFromRight .25s ease'; }
+  const title = $('#monthName');
+  if(title){ title.style.animation = 'none'; title.offsetHeight; title.style.animation = 'titleIn .3s ease'; }
 }
 
 // ============ EVENT BINDING ============
