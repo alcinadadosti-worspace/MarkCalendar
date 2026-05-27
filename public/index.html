@@ -892,7 +892,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
             <option value="monthly">Mensal (12x)</option>
             <option value="custom">Personalizado...</option>
           </select>
-          <div id="customRecurWrap" style="display:none;margin-top:8px;display:none">
+          <div id="customRecurWrap" style="display:none;margin-top:8px">
             <div class="form-row" style="grid-template-columns:1fr 1fr 80px;gap:8px;align-items:end">
               <div class="form-group" style="margin-bottom:0">
                 <label style="font-size:11px">A cada</label>
@@ -1269,17 +1269,17 @@ async function loadAll(){
     }catch(e){ /* primeira vez */ }
   }
 }
-let localSaving = false;
+let localSaveCount = 0;
 async function save(key){
-  localSaving = true;
+  localSaveCount++;
   try{ await window.storage.set(key, JSON.stringify(state[key])); }
   catch(e){ console.error('save fail', key, e); }
-  setTimeout(() => { localSaving = false; }, 500);
+  setTimeout(() => { localSaveCount = Math.max(0, localSaveCount-1); }, 1500);
 }
 
 function startRealtimeSync(){
   db.collection(CALENDAR_COLLECTION).onSnapshot(function(snapshot){
-    if(localSaving) return;
+    if(localSaveCount > 0) return;
     let changed = false;
     snapshot.docChanges().forEach(function(change){
       if(change.type === 'added' || change.type === 'modified'){
@@ -2068,8 +2068,9 @@ function timeToOffset(t){
   return (h - 7) * 42 + (m/60)*42;
 }
 function addHour(t){
+  if(!t || !t.includes(':')) return '10:00';
   const [h,m] = t.split(':').map(Number);
-  return pad(Math.min(h+1, 23))+':'+pad(m);
+  return pad(Math.min((h||0)+1, 23))+':'+pad(m||0);
 }
 
 // ============ DAY VIEW ============
@@ -2517,7 +2518,8 @@ function saveEvent(){
     // recorrência
     const rec = newEv.recurring;
     if(rec && rec !== 'none'){
-      const base = new Date(activeDateKey);
+      const dp = activeDateKey.split('-');
+      const base = new Date(+dp[0], +dp[1]-1, +dp[2]);
       let count = 12;
       let intervalDays = 0, intervalWeeks = 0, intervalMonths = 0;
       if(rec === 'daily'){ intervalDays = 1; }
@@ -2816,7 +2818,8 @@ function renderSearch(query){
     el.addEventListener('click', () => {
       const key = el.dataset.searchKey;
       const parts = key.split('-');
-      state.current = new Date(+parts[0], +parts[1]-1, 1);
+      state.current = new Date(+parts[0], +parts[1]-1, +parts[2]);
+      if(state.view === 'month') state.current.setDate(1);
       openModal(key);
       wrap.innerHTML = '';
       $('#searchInput').value = '';
@@ -2998,8 +3001,9 @@ function bindEvents(){
 
   // sidebar admin extra
   $('#clearFilterBtn').addEventListener('click', () => {
-    state.filterCollab = null;
-    if(state.role === 'viewer') state.viewerAs = null;
+    if(state.role === 'admin'){
+      state.filterCollab = null;
+    }
     state.showOnlyMine = false;
     render();
   });
