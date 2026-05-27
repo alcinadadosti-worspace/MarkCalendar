@@ -6,7 +6,7 @@
 <title>Calendário da Equipe</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1A1438">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CalEquipe">
 <link rel="apple-touch-icon" href="icon-192.svg">
@@ -2733,7 +2733,6 @@ function rgbToHex(c){
 
 // ============ LOGIN (Firebase Auth) ============
 function openLogin(){
-  $('#loginUser').value = 'admin';
   $('#loginPwd').value = '';
   $('#loginError').style.display = 'none';
   $('#loginModal').classList.add('open');
@@ -2820,13 +2819,7 @@ async function tryLogin(){
     $('#loginPwd').value = '';
     return;
   }
-
-  applyUserRole(matched);
-  $('#loginModal').classList.remove('open');
-  $('#appContent').style.display = '';
-  startRealtimeSync();
-  render();
-  initUserLocation();
+  // onAuthStateChanged handles the rest (loadAll, render, etc.)
 }
 
 function applyUserRole(userInfo){
@@ -3084,14 +3077,13 @@ function bindEvents(){
 
 // ============ INIT ============
 (async () => {
-  await loadAll();
   bindEvents();
 
-  // Firebase Auth session restore
-  auth.onAuthStateChanged(function(user){
+  auth.onAuthStateChanged(async function(user){
     if(user){
       const userInfo = authUserByEmail(user.email);
       if(userInfo){
+        await loadAll();
         applyUserRole(userInfo);
         $('#loginModal').classList.remove('open');
         $('#appContent').style.display = '';
