@@ -239,6 +239,36 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .status-home{background:#A8E6F0}
 .status-off{background:#E0E0E0}
 .status-travel{background:#FFD98A}
+.status-field{background:#F5C87B}
+
+/* viewer status picker */
+.viewer-status-picker{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.viewer-status-picker button{border:1px solid var(--ink);background:var(--bg);padding:4px 8px;border-radius:999px;font-family:'Inter',sans-serif;font-size:10.5px;cursor:pointer;color:var(--ink);transition:all .15s;display:flex;align-items:center;gap:4px}
+.viewer-status-picker button.active{box-shadow:var(--shadow);font-weight:600;background:var(--bg-2)}
+
+/* team view toggle */
+.team-toggle{display:flex;border:1.5px solid var(--ink);border-radius:999px;padding:3px;background:var(--bg);margin-top:8px}
+.team-toggle button{flex:1;border:none;background:transparent;padding:6px 10px;border-radius:999px;font-family:'Inter',sans-serif;font-size:11px;font-weight:500;cursor:pointer;color:var(--ink);transition:all .2s}
+.team-toggle button.active{background:var(--ink);color:var(--bg)}
+.event.team-readonly{opacity:.4;pointer-events:none}
+
+/* completed events */
+.event.completed{text-decoration:line-through;opacity:.6}
+.ee-completed{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--success);font-weight:600}
+
+/* personal notes */
+.note-dot{width:5px;height:5px;border-radius:50%;background:var(--warn);display:inline-block;margin-left:2px}
+.personal-note{margin-top:12px;padding-top:12px;border-top:1px dashed var(--muted)}
+.personal-note textarea{width:100%;min-height:50px;border:1px solid var(--muted);border-radius:6px;padding:8px 10px;font-family:'Fraunces',serif;font-style:italic;font-size:12.5px;background:var(--bg);color:var(--ink);resize:vertical;outline:none}
+.personal-note textarea:focus{border-color:var(--ink)}
+
+/* requests badge */
+.request-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif}
+.request-card{border:1.5px solid var(--muted);border-radius:8px;padding:12px;margin-bottom:8px}
+.request-card.pending{border-color:var(--warn)}
+.request-card .rc-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.request-card .rc-meta{font-size:11px;color:var(--ink-soft);font-family:'Fraunces',serif;font-style:italic}
+.request-card .rc-actions{display:flex;gap:6px;margin-top:8px}
 
 /* upcoming */
 .upcoming{display:flex;flex-direction:column;gap:8px}
@@ -728,6 +758,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <button class="icon-btn" id="historyBtn" title="Histórico">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
     </button>
+    <button class="icon-btn" id="requestsBtn" title="Solicitações" style="position:relative;display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="request-badge" id="requestBadge" style="display:none">0</span>
+    </button>
     <button class="icon-btn" id="themeBtn" title="Alternar tema">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
     </button>
@@ -785,6 +819,9 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <h2 class="panel-title">Buscar</h2>
       <input type="text" id="searchInput" placeholder="Buscar eventos..." style="width:100%;padding:8px 10px;border:1.5px solid var(--muted);border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12.5px;background:var(--bg);color:var(--ink);outline:none;transition:border-color .2s">
       <div id="searchResults" style="margin-top:6px;max-height:220px;overflow-y:auto"></div>
+      <div id="viewerStatusArea"></div>
+      <div id="teamToggleArea"></div>
+      <button class="btn small" id="requestMeetingBtn" style="display:none;margin-top:8px;width:100%">📅 Solicitar reunião</button>
     </div>
 
     <div>
@@ -981,6 +1018,14 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       </div>
     </div>
 
+    <div id="personalNoteWrap" style="display:none">
+      <div class="personal-note">
+        <label>📝 Sua nota pessoal para este dia</label>
+        <textarea id="personalNoteText" placeholder="Anote algo..." maxlength="500"></textarea>
+        <button class="btn small" id="saveNoteBtn" style="margin-top:6px">Salvar nota</button>
+      </div>
+    </div>
+
     <div id="viewerNote" style="display:none">
       <div class="readonly-note">
         Você pode confirmar presença e comentar nos seus eventos e nos eventos da equipe.
@@ -988,6 +1033,48 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div class="modal-actions">
         <button class="btn primary" id="closeViewerBtn">Fechar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ REQUESTS ============ -->
+<div class="modal-backdrop" id="requestsModal">
+  <div class="modal wide">
+    <h3>🔔 Solicitações</h3>
+    <p class="sub">Pedidos dos colaboradores</p>
+    <div id="requestsBody"></div>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="document.getElementById('requestsModal').classList.remove('open')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MEETING REQUEST ============ -->
+<div class="modal-backdrop" id="meetingRequestModal">
+  <div class="modal">
+    <h3>📅 Solicitar reunião</h3>
+    <p class="sub">Proponha um encontro com a equipe</p>
+    <div class="form-group">
+      <label>Participantes</label>
+      <div class="collab-picker" id="meetingCollabPicker"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Data sugerida</label>
+        <input type="date" id="meetingDate">
+      </div>
+      <div class="form-group">
+        <label>Horário sugerido</label>
+        <input type="time" id="meetingTime" value="10:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Observação</label>
+      <textarea id="meetingNote" placeholder="Sobre o que?" maxlength="200"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="meetingCancelBtn">Cancelar</button>
+      <button class="btn primary" id="meetingSubmitBtn">Enviar solicitação</button>
     </div>
   </div>
 </div>
@@ -1208,7 +1295,8 @@ const STATUS_LABELS = {
   office:  { label:'no escritório', cls:'status-office' },
   home:    { label:'home office',   cls:'status-home' },
   off:     { label:'folga',         cls:'status-off' },
-  travel:  { label:'viajando',      cls:'status-travel' }
+  travel:  { label:'viajando',      cls:'status-travel' },
+  field:   { label:'em campo',      cls:'status-field' }
 };
 
 // Feriados nacionais 2025-2027 (datas fixas + algumas móveis)
@@ -1304,14 +1392,17 @@ let state = {
   },
   statuses: {},           // { 'YYYY-MM-DD': { joao:'office', ... } }
   history: [],            // log de ações
-  customColors: {}        // { joao: '#XXXXXX' }
+  customColors: {},       // { joao: '#XXXXXX' }
+  requests: [],           // solicitações (troca de dia, reunião)
+  notes: {},              // { 'YYYY-MM-DD': { joao: 'texto' } }
+  viewMode: 'mine'        // 'mine' | 'team' (não persiste)
 };
 
 state.current.setDate(1);
 
 // ============ STORAGE ============
 async function loadAll(){
-  const keys = ['events','statuses','history','customColors','birthdays','theme','festive'];
+  const keys = ['events','statuses','history','customColors','birthdays','theme','festive','requests','notes'];
   for(const k of keys){
     try{
       const r = await window.storage.get(k);
@@ -1478,6 +1569,7 @@ function render(){
 
   // festive overlay
   renderFestive();
+  renderRequestBadge();
 }
 
 // ============ BANNER ============
@@ -1727,13 +1819,59 @@ function renderSidebar(){
   }
   $('#logoutBtn').style.display = loggedIn ? '' : 'none';
 
+  // viewer status picker
+  const vsArea = $('#viewerStatusArea');
+  if(vsArea){
+    if(state.viewerAs){
+      const today = todayKey;
+      const current = (state.statuses[today] && state.statuses[today][state.viewerAs]) || 'office';
+      vsArea.innerHTML = '<span style="font-size:10px;color:var(--ink-soft);display:block;margin-bottom:4px">Seu status hoje:</span>' +
+        '<div class="viewer-status-picker">' +
+        Object.entries(STATUS_LABELS).map(([s, sl]) =>
+          `<button data-vstatus="${s}" class="${current===s?'active':''}">${sl.label}</button>`
+        ).join('') + '</div>';
+      vsArea.querySelectorAll('[data-vstatus]').forEach(b => {
+        b.addEventListener('click', () => {
+          if(!state.statuses[today]) state.statuses[today] = {};
+          state.statuses[today][state.viewerAs] = b.dataset.vstatus;
+          save('statuses');
+          render();
+          toast('Status atualizado');
+        });
+      });
+    } else { vsArea.innerHTML = ''; }
+  }
+
+  // team view toggle
+  const ttArea = $('#teamToggleArea');
+  if(ttArea){
+    if(state.viewerAs){
+      ttArea.innerHTML = '<div class="team-toggle">' +
+        `<button data-vmode="mine" class="${state.viewMode==='mine'?'active':''}">Meu calendário</button>` +
+        `<button data-vmode="team" class="${state.viewMode==='team'?'active':''}">Ver equipe</button>` +
+        '</div>';
+      ttArea.querySelectorAll('[data-vmode]').forEach(b => {
+        b.addEventListener('click', () => {
+          state.viewMode = b.dataset.vmode;
+          if(state.viewMode === 'team'){ state.showOnlyMine = false; state.filterCollab = null; }
+          else { state.showOnlyMine = true; state.filterCollab = state.viewerAs; }
+          render();
+        });
+      });
+    } else { ttArea.innerHTML = ''; }
+  }
+
+  // meeting request button
+  const mrBtn = $('#requestMeetingBtn');
+  if(mrBtn) mrBtn.style.display = state.viewerAs ? '' : 'none';
+
   // colaboradores
   const monthCounts = eventsByCollabInMonth(state.current.getFullYear(), state.current.getMonth());
   const collabWrap = $('#collabsList');
   collabWrap.innerHTML = '';
   const collabEntries = Object.entries(COLLABS).filter(([key]) => {
     if(key === 'todos') return false;
-    if(state.role === 'viewer' && state.viewerAs) return key === state.viewerAs;
+    if(state.role === 'viewer' && state.viewerAs && state.viewMode !== 'team') return key === state.viewerAs;
     return true;
   });
   collabEntries.forEach(([key, info]) => {
@@ -1932,6 +2070,8 @@ function renderMonth(){
     marks.className = 'day-marks';
     if(holiday) marks.innerHTML += `<span class="holiday-dot" title="${escapeHtml(holiday)}">feriado</span>`;
     if(bdayCol && !muted) marks.innerHTML += `<span class="bday" title="Aniversário de ${COLLABS[bdayCol].name}">🎂</span>`;
+    const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
+    if(noteUser && state.notes[key] && state.notes[key][noteUser]) marks.innerHTML += '<span class="note-dot" title="Você tem uma nota"></span>';
     header.appendChild(marks);
     cell.appendChild(header);
 
@@ -1947,8 +2087,9 @@ function renderMonth(){
       const c = COLLABS[ev.collab];
       const type = EVENT_TYPES[ev.type || 'outro'];
       const isDimmed = state.filterCollab && ev.collab !== state.filterCollab && !state.showOnlyMine;
+      const isTeamReadonly = state.viewMode === 'team' && state.viewerAs && ev.collab !== state.viewerAs && ev.collab !== 'todos';
       const eEl = document.createElement('div');
-      eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '');
+      eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '') + (ev.completed ? ' completed' : '') + (isTeamReadonly ? ' team-readonly' : '');
       let timeBit = '';
       if(ev.startTime) timeBit = `<span class="time">${ev.startTime}</span>`;
       let rsvpBit = '';
@@ -2239,8 +2380,22 @@ function openModal(key){
     resetForm();
   } else {
     $('#adminForm').style.display = 'none';
+    if(state.viewMode === 'team'){
+      $('#viewerNote').querySelector('.readonly-note').textContent = 'Visualizando a agenda da equipe (somente leitura).';
+    } else {
+      $('#viewerNote').querySelector('.readonly-note').textContent = 'Você pode confirmar presença e comentar nos seus eventos e nos eventos da equipe.';
+    }
     $('#viewerNote').style.display = '';
   }
+
+  // notas pessoais
+  const noteWrap = $('#personalNoteWrap');
+  const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
+  if(noteUser){
+    noteWrap.style.display = '';
+    const dayNotes = state.notes[activeDateKey] || {};
+    $('#personalNoteText').value = dayNotes[noteUser] || '';
+  } else { noteWrap.style.display = 'none'; }
 
   $('#modal').classList.add('open');
   setTimeout(() => $('#eventTitle')?.focus(), 100);
@@ -2364,12 +2519,20 @@ function renderExistingEvents(){
 
     let actionsHTML = '';
     if(state.role === 'admin'){
+      const completedBadge = ev.completed ? `<span class="ee-completed">✅ Concluído</span>` : '';
       actionsHTML = `
         <div class="ee-actions">
+          ${completedBadge}
           <button class="btn small" data-act="edit" data-id="${ev.id}">Editar</button>
           <button class="btn small danger" data-act="delete" data-id="${ev.id}">Excluir</button>
         </div>
       `;
+    } else if(state.role === 'viewer' && state.viewMode !== 'team' && (state.viewerAs === ev.collab || ev.collab === 'todos')){
+      const completeBtn = ev.completed
+        ? `<span class="ee-completed">✅ Concluído</span>`
+        : `<button class="btn small" data-act="complete" data-id="${ev.id}">✓ Concluir</button>`;
+      const swapBtn = ev.collab !== 'todos' ? `<button class="btn small" data-act="swap" data-id="${ev.id}" data-key="${activeDateKey}">↔ Solicitar troca</button>` : '';
+      actionsHTML = `<div class="ee-actions">${completeBtn}${swapBtn}</div>`;
     }
 
     // comments
@@ -2424,6 +2587,23 @@ function renderExistingEvents(){
   // bind ações
   container.querySelectorAll('[data-act="delete"]').forEach(b => {
     b.addEventListener('click', () => deleteEvent(b.dataset.id));
+  });
+  container.querySelectorAll('[data-act="complete"]').forEach(b => {
+    b.addEventListener('click', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
+      if(!ev) return;
+      ev.completed = true;
+      ev.completedAt = new Date().toISOString();
+      const who = state.viewerAs ? COLLABS[state.viewerAs].name : ADMIN_USER.name;
+      logHistory(`${who} concluiu "${ev.title}"`);
+      save('events');
+      renderExistingEvents();
+      render();
+      toast('Evento concluído!');
+    });
+  });
+  container.querySelectorAll('[data-act="swap"]').forEach(b => {
+    b.addEventListener('click', () => requestDateChange(b.dataset.key, b.dataset.id));
   });
   container.querySelectorAll('[data-act="edit"]').forEach(b => {
     b.addEventListener('click', () => {
@@ -2995,6 +3175,175 @@ function renderSearch(query){
   });
 }
 
+// ============ REQUESTS SYSTEM ============
+function renderRequestBadge(){
+  const btn = $('#requestsBtn');
+  const badge = $('#requestBadge');
+  if(!btn) return;
+  if(state.role === 'admin'){
+    btn.style.display = '';
+    const pending = (state.requests||[]).filter(r => r.status === 'pending').length;
+    if(pending > 0){ badge.style.display = 'flex'; badge.textContent = pending; }
+    else { badge.style.display = 'none'; }
+  } else { btn.style.display = 'none'; }
+}
+
+function requestDateChange(dateKey, eventId){
+  const ev = (state.events[dateKey]||[]).find(x=>x.id===eventId);
+  if(!ev) return;
+  const newDate = prompt('Para qual data mover? (AAAA-MM-DD)', dateKey);
+  if(!newDate || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) return;
+  const reason = prompt('Motivo da troca (opcional):', '') || '';
+  if(!state.requests) state.requests = [];
+  state.requests.push({
+    id: uid(), type:'date-change', eventId: ev.id, dateKey, requestedDate: newDate,
+    who: state.viewerAs, reason, status:'pending', createdAt: new Date().toISOString(), resolvedAt:null
+  });
+  save('requests');
+  logHistory(`${COLLABS[state.viewerAs].name} solicitou troca de "${ev.title}" para ${newDate}`);
+  toast('Solicitação enviada!');
+}
+
+function openRequestsModal(){
+  const body = $('#requestsBody');
+  const reqs = state.requests || [];
+  const pending = reqs.filter(r=>r.status==='pending');
+  const resolved = reqs.filter(r=>r.status!=='pending').slice(-20);
+  let html = '';
+  if(!pending.length && !resolved.length){ html = '<p style="text-align:center;color:var(--ink-faint);font-style:italic">Nenhuma solicitação.</p>'; }
+  pending.forEach(r => {
+    const who = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
+    const photo = COLLABS[r.who] ? COLLABS[r.who].photo : '';
+    const photoHtml = photo ? `<img src="${photo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">` : '';
+    if(r.type === 'date-change'){
+      const ev = Object.values(state.events).flat().find(e=>e.id===r.eventId);
+      const evTitle = ev ? escapeHtml(ev.title) : '(evento removido)';
+      html += `<div class="request-card pending">
+        <div class="rc-head">${photoHtml}<strong>${who}</strong></div>
+        <div class="rc-meta">Quer mover "<strong>${evTitle}</strong>" de ${r.dateKey} para ${r.requestedDate}</div>
+        ${r.reason ? `<div class="rc-meta">Motivo: ${escapeHtml(r.reason)}</div>` : ''}
+        <div class="rc-actions">
+          <button class="btn small" data-req-approve="${r.id}">✓ Aprovar</button>
+          <button class="btn small danger" data-req-deny="${r.id}">✗ Negar</button>
+        </div>
+      </div>`;
+    } else if(r.type === 'meeting'){
+      const cols = (r.colleagues||[]).map(k=>COLLABS[k]?COLLABS[k].name:k).join(', ');
+      html += `<div class="request-card pending">
+        <div class="rc-head">${photoHtml}<strong>${who}</strong></div>
+        <div class="rc-meta">Solicita reunião com <strong>${cols}</strong> em ${r.suggestedDate} às ${r.suggestedTime}</div>
+        ${r.note ? `<div class="rc-meta">Obs: ${escapeHtml(r.note)}</div>` : ''}
+        <div class="rc-actions">
+          <button class="btn small" data-req-approve="${r.id}">✓ Aprovar</button>
+          <button class="btn small danger" data-req-deny="${r.id}">✗ Negar</button>
+        </div>
+      </div>`;
+    }
+  });
+  if(resolved.length){
+    html += '<h4 style="font-family:Fraunces,serif;font-size:14px;margin:16px 0 8px;color:var(--ink-soft)">Resolvidos</h4>';
+    resolved.reverse().forEach(r => {
+      const who = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
+      const icon = r.status === 'approved' ? '✅' : '❌';
+      const label = r.type === 'meeting' ? 'reunião' : 'troca de dia';
+      html += `<div class="request-card"><div class="rc-meta">${icon} ${who} — ${label} (${r.status === 'approved' ? 'aprovado' : 'negado'})</div></div>`;
+    });
+  }
+  body.innerHTML = html;
+  body.querySelectorAll('[data-req-approve]').forEach(b => {
+    b.addEventListener('click', () => resolveRequest(b.dataset.reqApprove, 'approved'));
+  });
+  body.querySelectorAll('[data-req-deny]').forEach(b => {
+    b.addEventListener('click', () => resolveRequest(b.dataset.reqDeny, 'denied'));
+  });
+  $('#requestsModal').classList.add('open');
+}
+
+function resolveRequest(reqId, status){
+  const req = (state.requests||[]).find(r=>r.id===reqId);
+  if(!req) return;
+  req.status = status;
+  req.resolvedAt = new Date().toISOString();
+  if(status === 'approved'){
+    if(req.type === 'date-change'){
+      const fromArr = state.events[req.dateKey] || [];
+      const idx = fromArr.findIndex(e=>e.id===req.eventId);
+      if(idx !== -1){
+        const ev = fromArr.splice(idx, 1)[0];
+        if(!fromArr.length) delete state.events[req.dateKey];
+        if(!state.events[req.requestedDate]) state.events[req.requestedDate] = [];
+        state.events[req.requestedDate].push(ev);
+        logHistory(`Aprovou troca de "${ev.title}" para ${req.requestedDate}`);
+        save('events');
+      }
+    } else if(req.type === 'meeting'){
+      const k = req.suggestedDate;
+      const newEv = {
+        id: uid(), title:'Reunião solicitada por '+COLLABS[req.who].name,
+        collab:'todos', type:'reuniao', startTime:req.suggestedTime, endTime:addHour(req.suggestedTime),
+        desc:req.note||'', link:'', location:'', recurring:'none', pinned:false, private:false,
+        createdAt:new Date().toISOString(), rsvp:{}, comments:[]
+      };
+      if(!state.events[k]) state.events[k] = [];
+      state.events[k].push(newEv);
+      logHistory(`Aprovou reunião solicitada por ${COLLABS[req.who].name}`);
+      save('events');
+    }
+  } else {
+    const label = req.type === 'meeting' ? 'reunião' : 'troca';
+    logHistory(`Negou ${label} de ${COLLABS[req.who].name}`);
+  }
+  save('requests');
+  openRequestsModal();
+  render();
+}
+
+// ============ PERSONAL NOTES ============
+function savePersonalNote(){
+  const key = activeDateKey;
+  const userKey = state.role === 'admin' ? 'admin' : state.viewerAs;
+  if(!userKey) return;
+  const text = $('#personalNoteText').value.trim();
+  if(!state.notes[key]) state.notes[key] = {};
+  if(text) state.notes[key][userKey] = text;
+  else delete state.notes[key][userKey];
+  if(Object.keys(state.notes[key]).length === 0) delete state.notes[key];
+  save('notes');
+  toast('Nota salva');
+  render();
+}
+
+// ============ MEETING REQUEST ============
+function openMeetingRequest(){
+  $('#meetingDate').value = todayKey;
+  $('#meetingTime').value = '10:00';
+  $('#meetingNote').value = '';
+  const picker = $('#meetingCollabPicker');
+  const others = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== state.viewerAs);
+  picker.innerHTML = others.map(([k, info]) =>
+    `<button class="pick" data-mcollab="${k}"><span class="dot" style="background:var(${info.cssVar})"></span>${info.name}</button>`
+  ).join('');
+  picker.querySelectorAll('.pick').forEach(b => {
+    b.addEventListener('click', () => b.classList.toggle('selected'));
+  });
+  $('#meetingRequestModal').classList.add('open');
+}
+function submitMeetingRequest(){
+  const colleagues = Array.from($$('#meetingCollabPicker .pick.selected')).map(b => b.dataset.mcollab);
+  if(!colleagues.length){ toast('Selecione pelo menos um participante'); return; }
+  if(!state.requests) state.requests = [];
+  state.requests.push({
+    id: uid(), type:'meeting', who: state.viewerAs, colleagues,
+    suggestedDate: $('#meetingDate').value, suggestedTime: $('#meetingTime').value,
+    note: $('#meetingNote').value.trim(), status:'pending', createdAt: new Date().toISOString(),
+    resolvedAt:null, eventId:null
+  });
+  save('requests');
+  logHistory(`${COLLABS[state.viewerAs].name} solicitou reunião`);
+  $('#meetingRequestModal').classList.remove('open');
+  toast('Solicitação enviada!');
+}
+
 // ============ EXPORT ============
 function exportJSON(){
   const data = {
@@ -3126,6 +3475,11 @@ function bindEvents(){
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#printBtn').addEventListener('click', () => window.print());
   $('#exportBtn').addEventListener('click', exportJSON);
+  $('#requestsBtn').addEventListener('click', openRequestsModal);
+  $('#requestMeetingBtn').addEventListener('click', () => openMeetingRequest());
+  $('#meetingSubmitBtn').addEventListener('click', submitMeetingRequest);
+  $('#meetingCancelBtn').addEventListener('click', () => $('#meetingRequestModal').classList.remove('open'));
+  $('#saveNoteBtn').addEventListener('click', savePersonalNote);
   $('#bannerWeatherWrap').addEventListener('click', openWeatherModal);
 
   // settings save
