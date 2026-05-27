@@ -1095,6 +1095,7 @@ const AUTH_USERS = {
   ravy:    { email:'ravy@equipe.cal',    role:'viewer', collabKey:'ravy',  name:'Ravy' }
 };
 function authUserByEmail(email){ return Object.values(AUTH_USERS).find(function(u){ return u.email === email; }); }
+function pinToPassword(pin){ return pin + 'eq'; }
 
 // Storage adapter: Firestore com cache em localStorage
 window.storage = {
@@ -2742,7 +2743,7 @@ function openLogin(){
 
 async function checkSetupNeeded(){
   try{
-    await auth.signInWithEmailAndPassword('suzana@equipe.cal', 'test');
+    await auth.signInWithEmailAndPassword('suzana@equipe.cal', 'testxx');
   }catch(e){
     if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential'){
       try{
@@ -2766,7 +2767,7 @@ async function setupAccounts(){
       const res = await fetch(url, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ email:info.email, password:passwords[id], returnSecureToken:false })
+        body:JSON.stringify({ email:info.email, password:pinToPassword(passwords[id]), returnSecureToken:false })
       });
       const data = await res.json();
       if(data.localId || data.kind) ok++;
@@ -2795,7 +2796,7 @@ async function tryLogin(){
   let matched = null;
   for(const [id, info] of Object.entries(AUTH_USERS)){
     try{
-      await auth.signInWithEmailAndPassword(info.email, pin);
+      await auth.signInWithEmailAndPassword(info.email, pinToPassword(pin));
       matched = info;
       break;
     }catch(e){
