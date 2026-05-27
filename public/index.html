@@ -128,7 +128,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 /* clock popup */
 .clock-popup{
-  display:none;position:absolute;top:calc(100% + 8px);right:0;z-index:55;
+  display:none;position:fixed;z-index:55;
   background:var(--card);border:1.5px solid var(--ink);border-radius:12px;
   box-shadow:var(--shadow-lg);padding:20px;min-width:250px;
   animation:pop .2s ease;
@@ -3283,6 +3283,9 @@ function bindEvents(){
         <div class="cp-row"><span class="cp-label">Esta semana</span><span class="cp-val">${semana}</span></div>
         <div class="cp-row"><span class="cp-label">Progresso do dia</span><span class="cp-val">${Math.round(dayProgress)}%</span></div>
       `;
+      const rect = clockEl.getBoundingClientRect();
+      popup.style.top = (rect.bottom + 8) + 'px';
+      popup.style.right = (window.innerWidth - rect.right) + 'px';
       popup.classList.add('open');
     });
     document.addEventListener('click', e => {
