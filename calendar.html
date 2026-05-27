@@ -257,10 +257,25 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .ee-completed{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--success);font-weight:600}
 
 /* personal notes */
-.note-dot{font-size:10px;display:inline-block;margin-left:2px}
+.note-indicator{
+  position:absolute;bottom:4px;left:4px;font-size:14px;z-index:1;
+  filter:drop-shadow(0 0 1px var(--bg));
+}
+.cell .note-tooltip{
+  display:none;position:absolute;bottom:22px;left:2px;z-index:10;
+  background:var(--ink);color:var(--bg);font-size:10px;padding:4px 8px;
+  border-radius:4px;max-width:140px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;font-family:'Inter',sans-serif;font-weight:400;
+  pointer-events:none;
+}
+.cell:hover .note-tooltip{display:block}
 .personal-note{margin-top:12px;padding-top:12px;border-top:1px dashed var(--muted)}
 .personal-note textarea{width:100%;min-height:50px;border:1px solid var(--muted);border-radius:6px;padding:8px 10px;font-family:'Fraunces',serif;font-style:italic;font-size:12.5px;background:var(--bg);color:var(--ink);resize:vertical;outline:none}
 .personal-note textarea:focus{border-color:var(--ink)}
+.note-icon-picker{display:flex;gap:4px;flex-wrap:wrap}
+.note-ico-btn{width:32px;height:32px;border:1.5px solid var(--muted);border-radius:6px;background:var(--bg);font-size:16px;cursor:pointer;display:grid;place-items:center;transition:all .15s}
+.note-ico-btn:hover{border-color:var(--ink)}
+.note-ico-btn.selected{border-color:var(--ink);box-shadow:var(--shadow);background:var(--bg-2)}
 
 /* requests badge */
 .request-badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif}
@@ -1022,7 +1037,23 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div class="personal-note">
         <label>📝 Sua nota pessoal para este dia</label>
         <textarea id="personalNoteText" placeholder="Anote algo..." maxlength="500"></textarea>
-        <button class="btn small" id="saveNoteBtn" style="margin-top:6px">Salvar nota</button>
+        <div style="margin-top:8px">
+          <label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-soft);display:block;margin-bottom:4px">Ícone da nota</label>
+          <div class="note-icon-picker" id="noteIconPicker">
+            <button class="note-ico-btn selected" data-nico="📝">📝</button>
+            <button class="note-ico-btn" data-nico="⚠️">⚠️</button>
+            <button class="note-ico-btn" data-nico="💡">💡</button>
+            <button class="note-ico-btn" data-nico="📌">📌</button>
+            <button class="note-ico-btn" data-nico="🎯">🎯</button>
+            <button class="note-ico-btn" data-nico="📞">📞</button>
+            <button class="note-ico-btn" data-nico="📦">📦</button>
+            <button class="note-ico-btn" data-nico="🔔">🔔</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button class="btn small primary" id="saveNoteBtn">Salvar nota</button>
+          <button class="btn small danger" id="deleteNoteBtn">Excluir nota</button>
+        </div>
       </div>
     </div>
 
@@ -1394,7 +1425,7 @@ let state = {
   history: [],            // log de ações
   customColors: {},       // { joao: '#XXXXXX' }
   requests: [],           // solicitações (troca de dia, reunião)
-  notes: {},              // { 'YYYY-MM-DD': { joao: 'texto' } }
+  notes: {},              // { 'YYYY-MM-DD': { joao: { text:'...', icon:'📝' } } }
   viewMode: 'mine'        // 'mine' | 'team' (não persiste)
 };
 
@@ -2071,7 +2102,14 @@ function renderMonth(){
     if(holiday) marks.innerHTML += `<span class="holiday-dot" title="${escapeHtml(holiday)}">feriado</span>`;
     if(bdayCol && !muted) marks.innerHTML += `<span class="bday" title="Aniversário de ${COLLABS[bdayCol].name}">🎂</span>`;
     const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
-    if(noteUser && state.notes[key] && state.notes[key][noteUser]) marks.innerHTML += '<span class="note-dot" title="Você tem uma nota">📝</span>';
+    if(noteUser && state.notes[key] && state.notes[key][noteUser]){
+      const n = state.notes[key][noteUser];
+      const nText = typeof n === 'string' ? n : (n.text || '');
+      const nIcon = typeof n === 'string' ? '📝' : (n.icon || '📝');
+      const preview = escapeHtml(nText.slice(0, 30));
+      cell.style.position = 'relative';
+      cell.insertAdjacentHTML('beforeend', `<span class="note-indicator">${nIcon}</span><span class="note-tooltip">${preview}</span>`);
+    }
     header.appendChild(marks);
     cell.appendChild(header);
 
@@ -2394,7 +2432,12 @@ function openModal(key){
   if(noteUser){
     noteWrap.style.display = '';
     const dayNotes = state.notes[activeDateKey] || {};
-    $('#personalNoteText').value = dayNotes[noteUser] || '';
+    const noteData = dayNotes[noteUser];
+    const noteText = noteData ? (typeof noteData === 'string' ? noteData : noteData.text || '') : '';
+    const noteIcon = noteData ? (typeof noteData === 'string' ? '📝' : noteData.icon || '📝') : '📝';
+    $('#personalNoteText').value = noteText;
+    $$('.note-ico-btn').forEach(b => b.classList.toggle('selected', b.dataset.nico === noteIcon));
+    $('#deleteNoteBtn').style.display = noteText ? '' : 'none';
   } else { noteWrap.style.display = 'none'; }
 
   $('#modal').classList.add('open');
@@ -3304,12 +3347,25 @@ function savePersonalNote(){
   const userKey = state.role === 'admin' ? 'admin' : state.viewerAs;
   if(!userKey) return;
   const text = $('#personalNoteText').value.trim();
+  const icon = (document.querySelector('.note-ico-btn.selected') || {}).dataset?.nico || '📝';
   if(!state.notes[key]) state.notes[key] = {};
-  if(text) state.notes[key][userKey] = text;
+  if(text) state.notes[key][userKey] = { text, icon };
   else delete state.notes[key][userKey];
   if(Object.keys(state.notes[key]).length === 0) delete state.notes[key];
   save('notes');
   toast('Nota salva');
+  render();
+}
+function deletePersonalNote(){
+  const key = activeDateKey;
+  const userKey = state.role === 'admin' ? 'admin' : state.viewerAs;
+  if(!userKey) return;
+  if(state.notes[key]){ delete state.notes[key][userKey]; }
+  if(state.notes[key] && Object.keys(state.notes[key]).length === 0) delete state.notes[key];
+  save('notes');
+  $('#personalNoteText').value = '';
+  $('#deleteNoteBtn').style.display = 'none';
+  toast('Nota excluída');
   render();
 }
 
@@ -3480,6 +3536,12 @@ function bindEvents(){
   $('#meetingSubmitBtn').addEventListener('click', submitMeetingRequest);
   $('#meetingCancelBtn').addEventListener('click', () => $('#meetingRequestModal').classList.remove('open'));
   $('#saveNoteBtn').addEventListener('click', savePersonalNote);
+  $('#deleteNoteBtn').addEventListener('click', deletePersonalNote);
+  $('#noteIconPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.note-ico-btn'); if(!btn) return;
+    $$('.note-ico-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
   $('#bannerWeatherWrap').addEventListener('click', openWeatherModal);
 
   // settings save
