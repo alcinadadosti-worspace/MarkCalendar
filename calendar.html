@@ -1150,16 +1150,24 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         </div>
       </div>
 
-      <div id="taskAssignWrap" style="display:none" class="form-group">
-        <label>Tarefas do colaborador</label>
-        <div id="taskAssignCard" style="border:1.5px solid var(--muted);border-radius:8px;padding:12px;background:var(--bg)">
-          <div id="taskAssignHeader" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;font-weight:600"></div>
-          <div id="taskAssignList" style="display:flex;flex-direction:column;gap:4px"></div>
-          <div style="display:flex;gap:6px;margin-top:8px">
-            <input type="text" id="taskAssignInput" placeholder="Ex: gravar, editar, roteiro..." maxlength="60" style="flex:1;padding:8px 10px;border:1px solid var(--muted);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
-            <button class="btn small" id="taskAssignAddBtn" type="button">+ Adicionar</button>
+      <div id="taskAssignWrap" class="form-group">
+        <label>Equipe & Tarefas</label>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Selecione um colaborador, defina a tarefa e clique em adicionar. Repita para cada pessoa.</p>
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:end">
+          <div style="flex:1;min-width:100px">
+            <select id="taskCollabSelect" style="width:100%;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
+              <option value="joao">João</option>
+              <option value="thayane">Thayane</option>
+              <option value="lianda">Lianda</option>
+              <option value="ravy">Ravy</option>
+            </select>
           </div>
+          <div style="flex:2;min-width:140px">
+            <input type="text" id="taskAssignInput" placeholder="Ex: gravar, editar, roteiro..." maxlength="60" style="width:100%;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
+          </div>
+          <button class="btn small" id="taskAssignAddBtn" type="button">+ Adicionar</button>
         </div>
+        <div id="taskAssignList" style="display:flex;flex-direction:column;gap:4px"></div>
       </div>
 
       <div class="form-group">
@@ -2726,7 +2734,7 @@ function resetForm(){
   formSelectedType = 'reuniao';
   formTasks = [];
   updatePickerSelections();
-  updateTaskAssignCard();
+  renderTaskList();
   $('#saveBtn').textContent = 'Adicionar evento';
   editingEvent = null;
 }
@@ -2744,9 +2752,9 @@ function fillFormFor(ev){
   $('#eventPrivate').checked = !!ev.private;
   formSelectedCollab = ev.collab;
   formSelectedType = ev.type || 'reuniao';
-  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? t : t.text);
+  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? {collab:ev.collab, text:t, done:false} : t);
   updatePickerSelections();
-  updateTaskAssignCard();
+  renderTaskList();
   $('#saveBtn').textContent = 'Salvar alterações';
   $('#eventTitle').focus();
 }
@@ -2806,14 +2814,26 @@ function renderExistingEvents(){
     let descLine = ev.desc ? `<div class="ee-desc">${escapeHtml(ev.desc)}</div>` : '';
     let tasksLine = '';
     if(ev.tasks && ev.tasks.length){
-      tasksLine = '<div style="margin-top:6px"><span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft)">Tarefas</span>';
-      tasksLine += ev.tasks.map((t,i) => {
-        const task = typeof t === 'string' ? {text:t, done:false} : t;
-        return `<div class="task-check${task.done?' done':''}">
-          <input type="checkbox" data-task-ev="${ev.id}" data-task-i="${i}" ${task.done?'checked':''}>
-          <span class="task-label">${escapeHtml(task.text)}</span>
-        </div>`;
-      }).join('');
+      tasksLine = '<div style="margin-top:8px;border-top:1px dashed var(--muted);padding-top:8px"><span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);display:block;margin-bottom:6px">Tarefas da equipe</span>';
+      const grouped = {};
+      ev.tasks.forEach((t,i) => {
+        const task = typeof t === 'string' ? {collab:ev.collab, text:t, done:false, _i:i} : {...t, _i:i};
+        if(!grouped[task.collab]) grouped[task.collab] = [];
+        grouped[task.collab].push(task);
+      });
+      Object.entries(grouped).forEach(([col, tasks]) => {
+        const c = COLLABS[col];
+        const photo = c && c.photo ? `<img src="${c.photo}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;border:1px solid var(${c.cssVar})">` : '';
+        const name = c ? c.name : col;
+        tasksLine += `<div style="margin-bottom:6px"><div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;margin-bottom:2px">${photo} ${name}</div>`;
+        tasks.forEach(task => {
+          tasksLine += `<div class="task-check${task.done?' done':''}">
+            <input type="checkbox" data-task-ev="${ev.id}" data-task-i="${task._i}" ${task.done?'checked':''}>
+            <span class="task-label">${escapeHtml(task.text)}</span>
+          </div>`;
+        });
+        tasksLine += '</div>';
+      });
       tasksLine += '</div>';
     }
 
@@ -3073,7 +3093,7 @@ function saveEvent(){
     ev.recurring = $('#eventRecurring').value;
     ev.pinned = $('#eventPinned').checked;
     ev.private = $('#eventPrivate').checked;
-    if(formTasks.length) ev.tasks = formTasks.map(t => ({text:t, done:false}));
+    if(formTasks.length) ev.tasks = formTasks.map(t => ({collab:t.collab, text:t.text, done:t.done||false}));
     logHistory(`Editou "${oldTitle}" → "${title}"`);
     save('events');
     toast('Evento atualizado');
@@ -3094,7 +3114,7 @@ function saveEvent(){
       createdAt: new Date().toISOString(),
       rsvp: {},
       comments: [],
-      tasks: formTasks.length ? formTasks.map(t => ({text:t, done:false})) : []
+      tasks: formTasks.length ? formTasks.map(t => ({collab:t.collab, text:t.text, done:false})) : []
     };
     if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
     state.events[activeDateKey].push(newEv);
@@ -3480,25 +3500,23 @@ function showWelcome(userInfo){
 }
 
 // ============ TASK ASSIGNMENT ============
-function updateTaskAssignCard(){
-  const wrap = $('#taskAssignWrap');
-  if(!wrap) return;
-  if(formSelectedCollab === 'todos' || !formSelectedCollab){ wrap.style.display = 'none'; return; }
-  wrap.style.display = '';
-  const c = COLLABS[formSelectedCollab];
-  const photo = c.photo ? `<img src="${c.photo}" style="width:22px;height:22px;border-radius:50%;object-fit:cover;border:1.5px solid var(${c.cssVar})">` : '';
-  $('#taskAssignHeader').innerHTML = `${photo} O que <strong>${c.name}</strong> deve fazer?`;
-  renderTaskList();
-}
+// formTasks = [ { collab:'joao', text:'gravar', done:false }, ... ]
 function renderTaskList(){
   const list = $('#taskAssignList');
-  list.innerHTML = formTasks.map((t,i) => `
-    <div class="task-item">
-      <span class="task-text">${escapeHtml(t)}</span>
+  if(!formTasks.length){
+    list.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma tarefa adicionada</span>';
+    return;
+  }
+  list.innerHTML = formTasks.map((t,i) => {
+    const c = COLLABS[t.collab];
+    const photo = c && c.photo ? `<img src="${c.photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(${c.cssVar})">` : '';
+    const name = c ? c.name : t.collab;
+    return `<div class="task-item">
+      ${photo}<strong style="font-size:11px;min-width:60px">${name}</strong>
+      <span class="task-text">${escapeHtml(t.text)}</span>
       <button class="task-remove" data-task-idx="${i}" title="Remover">&times;</button>
-    </div>
-  `).join('');
-  if(!formTasks.length) list.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma tarefa ainda</span>';
+    </div>`;
+  }).join('');
   list.querySelectorAll('.task-remove').forEach(b => {
     b.addEventListener('click', () => {
       formTasks.splice(+b.dataset.taskIdx, 1);
@@ -3507,10 +3525,11 @@ function renderTaskList(){
   });
 }
 function addTaskAssign(){
+  const collab = $('#taskCollabSelect').value;
   const input = $('#taskAssignInput');
   const text = input.value.trim();
-  if(!text) return;
-  formTasks.push(text);
+  if(!text){ input.focus(); return; }
+  formTasks.push({ collab, text, done:false });
   input.value = '';
   renderTaskList();
   input.focus();
@@ -3890,9 +3909,7 @@ function bindEvents(){
   $('#collabPicker').addEventListener('click', e => {
     const btn = e.target.closest('.pick'); if(!btn) return;
     formSelectedCollab = btn.dataset.collab;
-    formTasks = [];
     updatePickerSelections();
-    updateTaskAssignCard();
   });
   $('#typePicker').addEventListener('click', e => {
     const btn = e.target.closest('.pick'); if(!btn) return;
