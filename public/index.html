@@ -131,6 +131,23 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 [data-theme="dark"] .rain-mid{background:#3e2700;color:#ffb74d}
 [data-theme="dark"] .rain-high{background:#3e0f0f;color:#ef9a9a}
 @media(max-width:700px){.forecast-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* search */
+#searchInput:focus{border-color:var(--ink)}
+.search-result{padding:8px 10px;border:1px solid var(--muted);border-radius:var(--radius);margin-bottom:4px;cursor:pointer;font-size:12px;transition:background .15s}
+.search-result:hover{background:var(--bg-2)}
+.search-result .sr-title{font-weight:600}
+.search-result .sr-meta{color:var(--ink-soft);font-size:11px;margin-top:2px}
+
+/* drag & drop */
+.event[draggable="true"]{cursor:grab}
+.event[draggable="true"]:active{cursor:grabbing}
+.cell.drag-over{background:var(--bg-2);outline:2px dashed var(--ink);outline-offset:-2px}
+
+/* sync indicator */
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-left:6px;vertical-align:middle}
+.sync-dot.online{background:#2e7d32}
+.sync-dot.offline{background:var(--danger)}
 .weather-icon{font-size:22px}
 
 /* ============ LAYOUT ============ */
@@ -544,6 +561,12 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         Mostrar só meus eventos
       </label>
       <button class="btn small" id="clearFilterBtn" style="margin-top:4px">Limpar seleção</button>
+    </div>
+
+    <div>
+      <h2 class="panel-title">Buscar</h2>
+      <input type="text" id="searchInput" placeholder="Buscar eventos..." style="width:100%;padding:8px 10px;border:1.5px solid var(--muted);border-radius:var(--radius);font-family:'Inter',sans-serif;font-size:12.5px;background:var(--bg);color:var(--ink);outline:none;transition:border-color .2s">
+      <div id="searchResults" style="margin-top:6px;max-height:220px;overflow-y:auto"></div>
     </div>
 
     <div>
@@ -1009,9 +1032,55 @@ async function loadAll(){
     }catch(e){ /* primeira vez */ }
   }
 }
+let localSaving = false;
 async function save(key){
+  localSaving = true;
   try{ await window.storage.set(key, JSON.stringify(state[key])); }
   catch(e){ console.error('save fail', key, e); }
+  setTimeout(() => { localSaving = false; }, 500);
+}
+
+function startRealtimeSync(){
+  db.collection(CALENDAR_COLLECTION).onSnapshot(function(snapshot){
+    if(localSaving) return;
+    let changed = false;
+    snapshot.docChanges().forEach(function(change){
+      if(change.type === 'added' || change.type === 'modified'){
+        var key = change.doc.id;
+        var val = change.doc.data().value;
+        if(val && state.hasOwnProperty(key)){
+          try{
+            var parsed = JSON.parse(val);
+            if(JSON.stringify(state[key]) !== val){
+              state[key] = parsed;
+              localStorage.setItem('cache_' + key, val);
+              changed = true;
+            }
+          }catch(e){}
+        }
+      }
+    });
+    if(changed) render();
+  });
+}
+
+function saveSession(){
+  localStorage.setItem('session', JSON.stringify({ role: state.role, viewerAs: state.viewerAs }));
+}
+function clearSession(){
+  localStorage.removeItem('session');
+}
+function restoreSession(){
+  try{
+    var s = JSON.parse(localStorage.getItem('session'));
+    if(s && (s.role === 'admin' || s.viewerAs)){
+      state.role = s.role;
+      state.viewerAs = s.viewerAs;
+      if(s.viewerAs){ state.filterCollab = s.viewerAs; state.showOnlyMine = true; }
+      return true;
+    }
+  }catch(e){}
+  return false;
 }
 
 // ============ HELPERS ============
@@ -1609,6 +1678,17 @@ function renderMonth(){
       let timeBit = '';
       if(ev.startTime) timeBit = `<span class="time">${ev.startTime}</span>`;
       eEl.innerHTML = `${timeBit}<span class="ico">${type.ico}</span><span>${escapeHtml(ev.title)}</span>`;
+      if(state.role === 'admin'){
+        eEl.draggable = true;
+        eEl.dataset.eventId = ev.id;
+        eEl.dataset.fromKey = key;
+        eEl.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', JSON.stringify({ id:ev.id, fromKey:key }));
+          e.dataTransfer.effectAllowed = 'move';
+          eEl.style.opacity = '0.5';
+        });
+        eEl.addEventListener('dragend', () => { eEl.style.opacity = ''; });
+      }
       evWrap.appendChild(eEl);
     });
     if(dayEvents.length > 3){
@@ -1620,7 +1700,32 @@ function renderMonth(){
     cell.appendChild(evWrap);
 
     if(!muted){
-      cell.addEventListener('click', () => openModal(key));
+      cell.addEventListener('click', (e) => {
+        if(e.target.closest('[draggable="true"]')) return;
+        openModal(key);
+      });
+      if(state.role === 'admin'){
+        cell.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; cell.classList.add('drag-over'); });
+        cell.addEventListener('dragleave', () => { cell.classList.remove('drag-over'); });
+        cell.addEventListener('drop', e => {
+          e.preventDefault();
+          cell.classList.remove('drag-over');
+          try{
+            const d = JSON.parse(e.dataTransfer.getData('text/plain'));
+            if(d.fromKey === key) return;
+            const fromArr = state.events[d.fromKey] || [];
+            const idx = fromArr.findIndex(ev => ev.id === d.id);
+            if(idx === -1) return;
+            const ev = fromArr.splice(idx, 1)[0];
+            if(!fromArr.length) delete state.events[d.fromKey];
+            if(!state.events[key]) state.events[key] = [];
+            state.events[key].push(ev);
+            logHistory(`Moveu "${ev.title}" de ${d.fromKey} para ${key}`);
+            save('events');
+            render();
+          }catch(err){}
+        });
+      }
     }
     cal.appendChild(cell);
   }
@@ -2417,8 +2522,55 @@ function tryLogin(){
   }
   $('#loginModal').classList.remove('open');
   $('#appContent').style.display = '';
+  saveSession();
+  startRealtimeSync();
   render();
   initUserLocation();
+}
+
+// ============ BUSCA ============
+function renderSearch(query){
+  const wrap = $('#searchResults');
+  if(!query || query.length < 2){ wrap.innerHTML = ''; return; }
+  const q = query.toLowerCase();
+  const results = [];
+  for(const [dateKey, evts] of Object.entries(state.events)){
+    for(const ev of evts){
+      if(state.role === 'viewer' && state.viewerAs && ev.collab !== state.viewerAs) continue;
+      const c = COLLABS[ev.collab];
+      const type = EVENT_TYPES[ev.type || 'outro'];
+      const haystack = [ev.title, ev.desc, c.name, type.label, ev.location, dateKey].join(' ').toLowerCase();
+      if(haystack.includes(q)){
+        results.push({ dateKey, ev, collab: c, type });
+      }
+    }
+  }
+  results.sort((a,b) => a.dateKey > b.dateKey ? 1 : -1);
+  if(results.length === 0){
+    wrap.innerHTML = '<p style="font-size:11px;color:var(--ink-faint);font-style:italic;padding:4px 0">Nenhum resultado</p>';
+    return;
+  }
+  wrap.innerHTML = results.slice(0, 15).map(r => {
+    const d = r.dateKey.split('-');
+    const dateStr = `${d[2]}/${d[1]}/${d[0]}`;
+    return `<div class="search-result" data-search-key="${r.dateKey}">
+      <div class="sr-title">${r.type.ico} ${escapeHtml(r.ev.title)}</div>
+      <div class="sr-meta">${dateStr} · ${r.collab.name}${r.ev.startTime ? ' · '+r.ev.startTime : ''}</div>
+    </div>`;
+  }).join('');
+  if(results.length > 15){
+    wrap.innerHTML += `<p style="font-size:11px;color:var(--ink-faint);font-style:italic;padding:4px 0">+${results.length-15} resultados</p>`;
+  }
+  wrap.querySelectorAll('.search-result').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.dataset.searchKey;
+      const parts = key.split('-');
+      state.current = new Date(+parts[0], +parts[1]-1, 1);
+      openModal(key);
+      wrap.innerHTML = '';
+      $('#searchInput').value = '';
+    });
+  });
 }
 
 // ============ EXPORT ============
@@ -2480,6 +2632,7 @@ function bindEvents(){
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
+    clearSession();
     $('#appContent').style.display = 'none';
     openLogin();
   });
@@ -2559,6 +2712,13 @@ function bindEvents(){
   $('#loginSubmit').addEventListener('click', tryLogin);
   $('#loginPwd').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
 
+  // busca de eventos
+  let searchTimeout;
+  $('#searchInput').addEventListener('input', e => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => renderSearch(e.target.value.trim()), 200);
+  });
+
   // mostrar só meus
   $('#showOnlyMine').addEventListener('change', e => {
     state.showOnlyMine = e.target.checked;
@@ -2578,7 +2738,14 @@ function bindEvents(){
 (async () => {
   await loadAll();
   bindEvents();
-  openLogin();
+  if(restoreSession()){
+    $('#appContent').style.display = '';
+    startRealtimeSync();
+    render();
+    initUserLocation();
+  } else {
+    openLogin();
+  }
   setInterval(() => {
     if(state.view === 'week' || state.view === 'day') render();
   }, 60000);
