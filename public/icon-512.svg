@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="100" fill="#1A1438"/>
+  <text x="256" y="180" text-anchor="middle" font-family="serif" font-weight="800" font-size="120" fill="#FBF8F1">CAL</text>
+  <rect x="96" y="220" width="320" height="190" rx="16" fill="none" stroke="#FBF8F1" stroke-width="8"/>
+  <line x1="96" y1="270" x2="416" y2="270" stroke="#FBF8F1" stroke-width="6"/>
+  <circle cx="176" cy="340" r="22" fill="#A8E6F0"/>
+  <circle cx="256" cy="340" r="22" fill="#F4C2D7"/>
+  <circle cx="336" cy="340" r="22" fill="#FFD98A"/>
+</svg>

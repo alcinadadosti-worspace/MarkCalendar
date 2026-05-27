@@ -2,8 +2,14 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <title>Calendário da Equipe</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1A1438">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CalEquipe">
+<link rel="apple-touch-icon" href="icon-192.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -466,10 +472,11 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 }
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 
-/* responsive */
+/* responsive desktop→tablet */
 @media (max-width:980px){
   body{padding:20px 16px}
   .layout{grid-template-columns:1fr}
+  .sidebar{display:none}
   .header{grid-template-columns:1fr;align-items:start;gap:14px}
   .month-title{font-size:48px}
   .banner{grid-template-columns:1fr;gap:8px}
@@ -480,6 +487,170 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   .form-row{grid-template-columns:1fr}
   .insights-grid{grid-template-columns:1fr}
 }
+
+/* ============ MOBILE ============ */
+/* hamburger */
+.mobile-hamburger{display:none}
+
+/* sidebar drawer */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(26,20,56,0.5);z-index:40;backdrop-filter:blur(2px)}
+.sidebar-overlay.open{display:block}
+
+/* bottom nav */
+.bottom-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:30;
+  background:var(--card);border-top:1.5px solid var(--ink);
+  padding:6px 0;padding-bottom:max(6px, env(safe-area-inset-bottom));
+}
+.bottom-nav-inner{display:flex;justify-content:space-around;align-items:center}
+.bnav-btn{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  border:none;background:transparent;color:var(--ink-soft);
+  font-family:'Inter',sans-serif;font-size:10px;font-weight:500;
+  cursor:pointer;padding:6px 12px;border-radius:8px;transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.bnav-btn.active{color:var(--ink);background:var(--bg-2)}
+.bnav-btn svg{width:22px;height:22px}
+
+/* install banner */
+.install-banner{
+  display:none;position:fixed;bottom:70px;left:12px;right:12px;z-index:35;
+  background:var(--ink);color:var(--bg);border-radius:12px;padding:14px 16px;
+  box-shadow:0 4px 20px rgba(0,0,0,0.3);
+  font-size:13px;font-weight:500;
+  align-items:center;gap:12px;
+}
+.install-banner button{
+  border:1.5px solid var(--bg);background:transparent;color:var(--bg);
+  padding:8px 16px;border-radius:999px;font-family:'Inter',sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+}
+.install-banner .dismiss{border:none;padding:8px;font-size:18px;cursor:pointer;color:var(--bg);background:transparent}
+
+@media (max-width:768px){
+  /* base */
+  body{padding:12px 10px;padding-bottom:72px}
+  html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+
+  /* hamburger visible */
+  .mobile-hamburger{
+    display:grid;place-items:center;
+    width:40px;height:40px;border:1.5px solid var(--ink);border-radius:50%;
+    background:var(--bg);cursor:pointer;color:var(--ink);
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  /* header compact */
+  .header{
+    grid-template-columns:auto 1fr auto;align-items:center;gap:10px;
+    margin-bottom:12px;
+  }
+  .month-title{font-size:28px;gap:8px}
+  .year{font-size:16px}
+  .brand{display:none}
+  .controls{gap:4px}
+  .controls .icon-btn{display:none}
+  .controls .view-toggle{order:10}
+  .view-toggle button{padding:6px 10px;font-size:11px}
+  .nav-btn{width:32px;height:32px;font-size:13px}
+  .nav-btn.wide{padding:0 10px;font-size:11px}
+
+  /* banner compact */
+  .banner{padding:10px 14px;margin-bottom:12px;gap:6px;grid-template-columns:1fr}
+  .banner-divider{display:none}
+  .banner-item{flex-direction:row;align-items:center;gap:8px}
+  .banner-label{font-size:9px;white-space:nowrap}
+  .banner-value{font-size:13px}
+
+  /* layout: no sidebar on mobile */
+  .layout{grid-template-columns:1fr;gap:0}
+  .sidebar{
+    display:flex;
+    position:fixed;top:0;left:0;bottom:0;width:280px;z-index:41;
+    background:var(--bg);border-right:1.5px solid var(--ink);
+    padding:20px 16px;overflow-y:auto;
+    transform:translateX(-100%);transition:transform .25s ease;
+  }
+  .sidebar.drawer-open{transform:translateX(0)}
+
+  /* calendar grid mobile */
+  .weekdays{gap:2px;margin-bottom:6px;padding:0}
+  .weekdays div{font-size:10px;text-align:center}
+  .calendar{gap:3px}
+  .cell{
+    aspect-ratio:1/1.1;padding:4px 5px;border-width:1px;border-radius:4px;
+    -webkit-tap-highlight-color:transparent;min-height:0;
+  }
+  .cell.is-clickable:hover{transform:none;box-shadow:none}
+  .cell.is-clickable:active{background:var(--bg-2)}
+  .day-num{font-size:13px}
+  .day-marks{gap:2px}
+  .day-marks .holiday-dot{font-size:7px}
+  .day-marks .bday{font-size:9px}
+  .events{gap:1px}
+  .event{font-size:8px;padding:1px 3px;border-width:1px;gap:2px}
+  .event .ico{font-size:8px}
+  .event .time{font-size:7px}
+  .more-link{font-size:8px}
+  .workload-bar{height:2px}
+
+  /* week view mobile */
+  .week-view{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .week-head{grid-template-columns:40px repeat(7,minmax(60px,1fr))}
+  .week-grid{grid-template-columns:40px repeat(7,minmax(60px,1fr))}
+  .hour-row{height:36px;font-size:9px;padding:1px 2px}
+  .week-event{font-size:10px;padding:3px 4px}
+
+  /* day view mobile */
+  .day-view-head{padding:12px 14px}
+  .day-view-head h2{font-size:18px}
+  .day-view-grid{grid-template-columns:40px 1fr}
+
+  /* modals fullscreen */
+  .modal-backdrop{padding:0;align-items:flex-end}
+  .modal{
+    max-width:100%;max-height:92vh;border-radius:16px 16px 0 0;
+    border-bottom:none;box-shadow:0 -4px 20px rgba(0,0,0,0.2);
+    padding:20px 16px;padding-bottom:max(20px, env(safe-area-inset-bottom));
+    animation:slideUp .25s ease;
+  }
+  .modal.wide{max-width:100%}
+  @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .modal h3{font-size:20px}
+  .modal .sub{font-size:12px;margin-bottom:14px}
+  .type-picker,.collab-picker{grid-template-columns:1fr 1fr;gap:4px}
+  .pick{padding:6px 8px;font-size:11px}
+  .form-row{grid-template-columns:1fr}
+  .form-group input,.form-group select,.form-group textarea{font-size:16px;padding:12px}
+  .btn{padding:12px 18px;font-size:14px;min-height:44px}
+  .btn.small{padding:10px 14px;font-size:12px;min-height:40px}
+  .modal-actions{gap:8px}
+  .existing-event{padding:12px}
+  .ee-actions{justify-content:stretch}
+  .ee-actions .btn.small{flex:1;justify-content:center}
+  .comment-input input{font-size:16px;padding:10px}
+  .comment-input button{padding:10px 14px;font-size:12px}
+
+  /* insights */
+  .insights-grid{grid-template-columns:1fr}
+
+  /* login modal */
+  .modal-backdrop#loginModal{align-items:center;padding:16px}
+  #loginModal .modal{border-radius:16px;max-height:none;border-bottom:1.5px solid var(--ink);animation:pop .2s ease}
+
+  /* bottom nav visible */
+  .bottom-nav{display:block}
+
+  /* toast above bottom nav */
+  .toast{bottom:80px}
+
+  /* forecast mobile */
+  .forecast-grid{grid-template-columns:repeat(3,1fr)}
+  .weather-city-stats{flex-wrap:wrap;gap:10px}
+  .weather-forecast-cities{gap:4px}
+  .weather-forecast-cities .btn.small{font-size:10px;padding:6px 8px}
+}
 </style>
 </head>
 <body>
@@ -488,6 +659,9 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 <div id="appContent" style="display:none">
 <header class="header">
+  <button class="mobile-hamburger" id="menuBtn" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
   <div class="month-title">
     <span id="monthName">—</span>
     <span class="year" id="yearLabel">—</span>
@@ -613,6 +787,34 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div class="day-view-grid" id="dayGrid"></div>
     </div>
   </main>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<nav class="bottom-nav" id="bottomNav">
+  <div class="bottom-nav-inner">
+    <button class="bnav-btn active" data-bnav="calendar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      Calendário
+    </button>
+    <button class="bnav-btn" data-bnav="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      Buscar
+    </button>
+    <button class="bnav-btn" data-bnav="weather">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/><circle cx="12" cy="12" r="5"/></svg>
+      Clima
+    </button>
+    <button class="bnav-btn" data-bnav="menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+      Mais
+    </button>
+  </div>
+</nav>
+
+<div class="install-banner" id="installBanner">
+  <span style="flex:1">Instale o Calendário como app</span>
+  <button id="installBtn">Instalar</button>
+  <button class="dismiss" id="installDismiss">&times;</button>
 </div>
 </div><!-- /appContent -->
 
@@ -2789,7 +2991,81 @@ function bindEvents(){
   setInterval(() => {
     if(state.view === 'week' || state.view === 'day') render();
   }, 60000);
+
+  // ============ MOBILE ============
+  const isMobile = () => window.innerWidth <= 768;
+
+  // sidebar drawer
+  const menuBtn = $('#menuBtn');
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = $('#sidebarOverlay');
+  function openDrawer(){ sidebar.classList.add('drawer-open'); overlay.classList.add('open'); }
+  function closeDrawer(){ sidebar.classList.remove('drawer-open'); overlay.classList.remove('open'); }
+  if(menuBtn) menuBtn.addEventListener('click', openDrawer);
+  if(overlay) overlay.addEventListener('click', closeDrawer);
+
+  // bottom nav
+  $$('.bnav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.bnav;
+      $$('.bnav-btn').forEach(b => b.classList.remove('active'));
+      if(action === 'calendar'){
+        btn.classList.add('active');
+        closeDrawer();
+      } else if(action === 'search'){
+        openDrawer();
+        setTimeout(() => { const si = $('#searchInput'); if(si) si.focus(); }, 300);
+      } else if(action === 'weather'){
+        openWeatherModal();
+      } else if(action === 'menu'){
+        openDrawer();
+      }
+    });
+  });
+
+  // swipe to change month on mobile
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.addEventListener('touchstart', e => {
+    if(!isMobile()) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, {passive:true});
+  document.addEventListener('touchend', e => {
+    if(!isMobile()) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if(Math.abs(dx) < 60 || Math.abs(dy) > Math.abs(dx)) return;
+    if(sidebar.classList.contains('drawer-open')) return;
+    if(e.target.closest('.modal-backdrop.open')) return;
+    if(state.view === 'month'){
+      if(dx < 0){ state.current.setMonth(state.current.getMonth()+1); state.current.setDate(1); }
+      else { state.current.setMonth(state.current.getMonth()-1); state.current.setDate(1); }
+      render();
+    }
+  }, {passive:true});
 })();
+
+// ============ SERVICE WORKER & PWA ============
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(function(){});
+}
+let deferredInstall = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  const banner = document.getElementById('installBanner');
+  if(banner && window.innerWidth <= 768) banner.style.display = 'flex';
+});
+document.addEventListener('click', e => {
+  if(e.target.id === 'installBtn' && deferredInstall){
+    deferredInstall.prompt();
+    deferredInstall.userChoice.then(() => { deferredInstall = null; document.getElementById('installBanner').style.display = 'none'; });
+  }
+  if(e.target.id === 'installDismiss'){
+    document.getElementById('installBanner').style.display = 'none';
+  }
+});
 
 })();
 </script>
