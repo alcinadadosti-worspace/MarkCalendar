@@ -2738,23 +2738,9 @@ function rgbToHex(c){
 function openLogin(){
   $('#loginPwd').value = '';
   $('#loginError').style.display = 'none';
+  $('#setupWrap').style.display = 'block';
   $('#loginModal').classList.add('open');
-  checkSetupNeeded();
   setTimeout(()=>$('#loginPwd').focus(), 100);
-}
-
-async function checkSetupNeeded(){
-  try{
-    await auth.signInWithEmailAndPassword('suzana@equipe.cal', 'testxx');
-  }catch(e){
-    if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential'){
-      try{
-        const snap = await db.collection('authSetupDone').doc('flag').get();
-        if(!snap.exists) $('#setupWrap').style.display = 'block';
-      }catch(err){}
-    }
-  }
-  try{ await auth.signOut(); }catch(e){}
 }
 
 async function hashPin(pin){
