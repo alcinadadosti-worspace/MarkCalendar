@@ -31,6 +31,7 @@
   --c-thayane:#F4C2D7;     --c-thayane-ink:#6B1E47;
   --c-lianda:#FFD98A;      --c-lianda-ink:#6B4A00;
   --c-ravy:#B4E8B4;        --c-ravy-ink:#1E5630;
+  --c-todos:#D4B4F0;       --c-todos-ink:#3B1A6B;
 
   --radius:6px;
   --shadow: 2px 2px 0 var(--ink);
@@ -298,6 +299,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .event.color-thayane {background:var(--c-thayane); color:var(--c-thayane-ink)}
 .event.color-lianda  {background:var(--c-lianda);  color:var(--c-lianda-ink)}
 .event.color-ravy    {background:var(--c-ravy);    color:var(--c-ravy-ink)}
+.event.color-todos   {background:var(--c-todos);   color:var(--c-todos-ink)}
 .event.dimmed{opacity:.25}
 .event.conflict::after{
   content:"!";position:absolute;font-weight:700;font-size:9px;color:var(--danger);
@@ -395,6 +397,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .pick[data-collab="thayane"].selected {background:var(--c-thayane)}
 .pick[data-collab="lianda"].selected  {background:var(--c-lianda)}
 .pick[data-collab="ravy"].selected    {background:var(--c-ravy)}
+.pick[data-collab="todos"].selected {background:var(--c-todos)}
 .pick[data-type].selected{background:var(--bg-2)}
 
 .modal-actions{display:flex;gap:10px;margin-top:20px;justify-content:flex-end;flex-wrap:wrap}
@@ -895,6 +898,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
           <button class="pick" data-collab="thayane"><span class="dot" style="background:var(--c-thayane)"></span>Thayane</button>
           <button class="pick" data-collab="lianda"><span class="dot" style="background:var(--c-lianda)"></span>Lianda</button>
           <button class="pick" data-collab="ravy"><span class="dot" style="background:var(--c-ravy)"></span>Ravy</button>
+          <button class="pick" data-collab="todos" style="grid-column:1/-1"><span class="dot" style="background:var(--c-todos)"></span>★ Todos (equipe inteira)</button>
         </div>
       </div>
 
@@ -1167,7 +1171,8 @@ const COLLABS = {
   joao:    { name:'João',    color:'color-joao',    cssVar:'--c-joao',    initial:'J', photo:'João.jpg' },
   thayane: { name:'Thayane', color:'color-thayane', cssVar:'--c-thayane', initial:'T', photo:'Thayane.png' },
   lianda:  { name:'Lianda',  color:'color-lianda',  cssVar:'--c-lianda',  initial:'L', photo:'Lianda.png' },
-  ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R', photo:'Ravy.jpg' }
+  ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R', photo:'Ravy.jpg' },
+  todos:   { name:'Todos',  color:'color-todos',   cssVar:'--c-todos',   initial:'★', photo:'' }
 };
 const ADMIN_USER = { name:'Suzana', photo:'Suzana.png' };
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1720,6 +1725,7 @@ function renderSidebar(){
   const collabWrap = $('#collabsList');
   collabWrap.innerHTML = '';
   const collabEntries = Object.entries(COLLABS).filter(([key]) => {
+    if(key === 'todos') return false;
     if(state.role === 'viewer' && state.viewerAs) return key === state.viewerAs;
     return true;
   });
@@ -1732,7 +1738,7 @@ function renderSidebar(){
     row.className = 'collab' + (isFiltering ? ' filtering' : '');
     row.innerHTML = `
       <div class="avatar" style="background:var(${info.cssVar})">
-        <img src="${info.photo}" alt="${info.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
+        ${info.photo ? `<img src="${info.photo}" alt="${info.name}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : info.initial}
         <span class="status-dot ${st.cls}" title="${st.label}"></span>
       </div>
       <div class="collab-info">
@@ -1927,7 +1933,7 @@ function renderMonth(){
     evWrap.className = 'events';
     let dayEvents = state.events[key] || [];
     if(state.showOnlyMine && state.viewerAs){
-      dayEvents = dayEvents.filter(e => e.collab === state.viewerAs);
+      dayEvents = dayEvents.filter(e => e.collab === state.viewerAs || e.collab === 'todos');
     }
     const visible = dayEvents.slice(0, 3);
     visible.forEach(ev => {
@@ -2052,7 +2058,7 @@ function renderWeek(){
     // events
     let dayEvents = (state.events[key]||[]).slice();
     if(state.showOnlyMine && state.viewerAs){
-      dayEvents = dayEvents.filter(ev => ev.collab === state.viewerAs);
+      dayEvents = dayEvents.filter(ev => ev.collab === state.viewerAs || ev.collab === 'todos');
     }
     dayEvents.forEach(ev => {
       const startT = ev.startTime || '09:00';
@@ -2138,7 +2144,7 @@ function renderDay(){
   }
   let dayEvents = (state.events[key]||[]).slice();
   if(state.showOnlyMine && state.viewerAs){
-    dayEvents = dayEvents.filter(ev => ev.collab === state.viewerAs);
+    dayEvents = dayEvents.filter(ev => ev.collab === state.viewerAs || ev.collab === 'todos');
   }
   dayEvents.forEach(ev => {
     const startT = ev.startTime || '09:00';
@@ -2279,7 +2285,7 @@ function renderExistingEvents(){
   let list = state.events[activeDateKey] || [];
   // privacy: viewer só vê privados se for o dono
   if(state.role === 'viewer'){
-    list = list.filter(e => !e.private || e.collab === state.viewerAs);
+    list = list.filter(e => !e.private || e.collab === state.viewerAs || e.collab === 'todos');
   }
   if(state.showOnlyMine && state.viewerAs){
     list = list.filter(e => e.collab === state.viewerAs);
@@ -2944,7 +2950,7 @@ function renderSearch(query){
   const results = [];
   for(const [dateKey, evts] of Object.entries(state.events)){
     for(const ev of evts){
-      if(state.role === 'viewer' && state.viewerAs && ev.collab !== state.viewerAs) continue;
+      if(state.role === 'viewer' && state.viewerAs && ev.collab !== state.viewerAs && ev.collab !== 'todos') continue;
       const c = COLLABS[ev.collab];
       const type = EVENT_TYPES[ev.type || 'outro'];
       const haystack = [ev.title, ev.desc, c.name, type.label, ev.location, dateKey].join(' ').toLowerCase();
