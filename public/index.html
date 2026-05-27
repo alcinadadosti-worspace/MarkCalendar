@@ -681,7 +681,28 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
             <option value="daily">Diário (12x)</option>
             <option value="weekly">Semanal (12x)</option>
             <option value="monthly">Mensal (12x)</option>
+            <option value="custom">Personalizado...</option>
           </select>
+          <div id="customRecurWrap" style="display:none;margin-top:8px;display:none">
+            <div class="form-row" style="grid-template-columns:1fr 1fr 80px;gap:8px;align-items:end">
+              <div class="form-group" style="margin-bottom:0">
+                <label style="font-size:11px">A cada</label>
+                <input type="number" id="customRecurInterval" value="1" min="1" max="30" style="padding:8px 10px">
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label style="font-size:11px">Período</label>
+                <select id="customRecurUnit">
+                  <option value="days">dia(s)</option>
+                  <option value="weeks">semana(s)</option>
+                  <option value="months">mês(es)</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:0">
+                <label style="font-size:11px">Vezes</label>
+                <input type="number" id="customRecurCount" value="4" min="1" max="52" style="padding:8px 10px">
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1973,6 +1994,7 @@ function resetForm(){
   $('#eventLink').value = '';
   $('#eventLocation').value = '';
   $('#eventRecurring').value = 'none';
+  $('#customRecurWrap').style.display = 'none';
   $('#eventPinned').checked = false;
   $('#eventPrivate').checked = false;
   formSelectedCollab = 'joao';
@@ -2276,15 +2298,28 @@ function saveEvent(){
     if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
     state.events[activeDateKey].push(newEv);
 
-    // recorrência: gerar próximas 12 ocorrências
+    // recorrência
     const rec = newEv.recurring;
     if(rec && rec !== 'none'){
       const base = new Date(activeDateKey);
-      for(let i=1;i<=12;i++){
+      let count = 12;
+      let intervalDays = 0, intervalWeeks = 0, intervalMonths = 0;
+      if(rec === 'daily'){ intervalDays = 1; }
+      else if(rec === 'weekly'){ intervalWeeks = 1; }
+      else if(rec === 'monthly'){ intervalMonths = 1; }
+      else if(rec === 'custom'){
+        count = Math.min(52, Math.max(1, parseInt($('#customRecurCount').value) || 4));
+        const interval = Math.max(1, parseInt($('#customRecurInterval').value) || 1);
+        const unit = $('#customRecurUnit').value;
+        if(unit === 'days') intervalDays = interval;
+        else if(unit === 'weeks') intervalWeeks = interval;
+        else if(unit === 'months') intervalMonths = interval;
+      }
+      for(let i=1;i<=count;i++){
         const next = new Date(base);
-        if(rec === 'daily') next.setDate(base.getDate()+i);
-        else if(rec === 'weekly') next.setDate(base.getDate()+(i*7));
-        else if(rec === 'monthly') next.setMonth(base.getMonth()+i);
+        if(intervalDays) next.setDate(base.getDate()+(i*intervalDays));
+        if(intervalWeeks) next.setDate(base.getDate()+(i*intervalWeeks*7));
+        if(intervalMonths) next.setMonth(base.getMonth()+(i*intervalMonths));
         const k = keyFromDate(next);
         const clone = {...newEv, id: uid(), recurringSource: newEv.id};
         if(!state.events[k]) state.events[k] = [];
@@ -2647,6 +2682,11 @@ function bindEvents(){
     const btn = e.target.closest('.pick'); if(!btn) return;
     formSelectedType = btn.dataset.type;
     updatePickerSelections();
+  });
+
+  // recorrencia custom toggle
+  $('#eventRecurring').addEventListener('change', () => {
+    $('#customRecurWrap').style.display = $('#eventRecurring').value === 'custom' ? 'block' : 'none';
   });
 
   // save/cancel
