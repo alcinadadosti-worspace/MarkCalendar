@@ -831,6 +831,13 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <div id="adminForm">
       <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:12px;letter-spacing:-0.01em">Novo evento</h4>
 
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="templateBtns">
+        <button class="btn small" data-tpl="acao-externa">🎯 Ação Externa</button>
+        <button class="btn small" data-tpl="reuniao-mensal">📋 Reunião Mensal</button>
+        <button class="btn small" data-tpl="reuniao-semanal">📞 Reunião Semanal</button>
+        <button class="btn small" data-tpl="evento-vic">🤝 Evento com Empresas</button>
+      </div>
+
       <div class="form-group">
         <label>Título</label>
         <input type="text" id="eventTitle" placeholder="Ex.: Reunião de planejamento" maxlength="50">
@@ -1129,6 +1136,13 @@ const EVENT_TYPES = {
   aniversario:{ label:'Aniversário', ico:'🎂' },
   call:       { label:'Call',        ico:'💻' },
   outro:      { label:'Outro',       ico:'✦' }
+};
+
+const EVENT_TEMPLATES = {
+  'acao-externa':    { title:'Ação Externa',              type:'viagem',  start:'08:00', end:'12:00', location:'Campo', recurring:'none', desc:'Ação de marketing externa' },
+  'reuniao-mensal':  { title:'Reunião Mensal',            type:'reuniao', start:'14:00', end:'16:00', location:'Matriz', recurring:'monthly', desc:'' },
+  'reuniao-semanal': { title:'Reunião Semanal',           type:'reuniao', start:'09:00', end:'10:00', location:'Online', recurring:'weekly', desc:'' },
+  'evento-vic':      { title:'Evento com Empresas (VIC)', type:'outro',   start:'09:00', end:'17:00', location:'', recurring:'none', desc:'Evento de relacionamento com empresas parceiras' }
 };
 
 const STATUS_LABELS = {
@@ -2872,6 +2886,21 @@ function bindEvents(){
     clearSession();
     $('#appContent').style.display = 'none';
     openLogin();
+  });
+
+  // templates
+  $('#templateBtns').addEventListener('click', e => {
+    const btn = e.target.closest('[data-tpl]'); if(!btn) return;
+    const tpl = EVENT_TEMPLATES[btn.dataset.tpl]; if(!tpl) return;
+    $('#eventTitle').value = tpl.title;
+    $('#eventStart').value = tpl.start;
+    $('#eventEnd').value = tpl.end;
+    $('#eventLocation').value = tpl.location;
+    $('#eventDesc').value = tpl.desc || '';
+    $('#eventRecurring').value = tpl.recurring;
+    $('#customRecurWrap').style.display = tpl.recurring === 'custom' ? 'block' : 'none';
+    formSelectedType = tpl.type;
+    updatePickerSelections();
   });
 
   // pickers
