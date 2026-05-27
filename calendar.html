@@ -2677,14 +2677,17 @@ function renderExistingEvents(){
 
     let rsvpHTML = '';
     if(state.role === 'viewer' && (state.viewerAs === ev.collab || ev.collab === 'todos')){
-      rsvpHTML = `
-        <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-          <span style="font-size:11px;color:var(--ink-soft);font-style:italic;font-family:Fraunces,serif">Confirma presença?</span>
-          <button class="btn small" data-rsvp="yes" data-id="${ev.id}">✓ Sim</button>
-          <button class="btn small" data-rsvp="no" data-id="${ev.id}">✗ Não</button>
-          ${myRSVP ? `<span class="rsvp-status rsvp-${myRSVP==='yes'?'yes':'no'}">${myRSVP==='yes'?'Confirmado':'Recusado'}</span>` : ''}
-        </div>
-      `;
+      if(myRSVP){
+        rsvpHTML = `<div style="margin-top:4px"><span class="rsvp-status rsvp-${myRSVP==='yes'?'yes':'no'}">${myRSVP==='yes'?'✓ Presença confirmada':'✗ Presença recusada'}</span></div>`;
+      } else {
+        rsvpHTML = `
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
+            <span style="font-size:11px;color:var(--ink-soft);font-style:italic;font-family:Fraunces,serif">Confirma presença?</span>
+            <button class="btn small" data-rsvp="yes" data-id="${ev.id}">✓ Sim</button>
+            <button class="btn small" data-rsvp="no" data-id="${ev.id}">✗ Não</button>
+          </div>
+        `;
+      }
     } else if(state.role === 'admin' && ev.rsvp){
       const rsvpEntries = Object.entries(ev.rsvp).filter(([k,v]) => COLLABS[k]);
       if(rsvpEntries.length){
@@ -2716,7 +2719,9 @@ function renderExistingEvents(){
         ? `<span class="ee-completed">✅ Concluído</span>`
         : `<button class="btn small" data-act="complete" data-id="${ev.id}">✓ Concluir</button>`;
       const swapBtn = ev.collab !== 'todos' ? `<button class="btn small" data-act="swap" data-id="${ev.id}" data-key="${activeDateKey}">↔ Solicitar troca</button>` : '';
-      actionsHTML = `<div class="ee-actions">${completeBtn}${swapBtn}</div>`;
+      const isMyMeeting = ev.type === 'reuniao' && ev.collab === 'todos' && ev.rsvp && ev.rsvp[state.viewerAs] === 'yes';
+      const cancelBtn = isMyMeeting ? `<button class="btn small danger" data-act="delete" data-id="${ev.id}">Cancelar reunião</button>` : '';
+      actionsHTML = `<div class="ee-actions">${completeBtn}${swapBtn}${cancelBtn}</div>`;
     }
 
     // comments
@@ -3565,12 +3570,15 @@ function respondMeetingRequest(reqId, response){
     req.status = 'approved';
     req.resolvedAt = new Date().toISOString();
     const k = req.suggestedDate;
-    const participants = [req.who, ...req.colleagues].map(c=>COLLABS[c]?COLLABS[c].name:c).join(', ');
+    const allPeople = [req.who, ...req.colleagues];
+    const participants = allPeople.map(c=>COLLABS[c]?COLLABS[c].name:c).join(', ');
+    const rsvpDone = {};
+    allPeople.forEach(c => { rsvpDone[c] = 'yes'; });
     const newEv = {
       id: uid(), title:'Reunião: '+participants,
       collab:'todos', type:'reuniao', startTime:req.suggestedTime, endTime:addHour(req.suggestedTime),
-      desc:(req.note||'')+' (aceita por todos)', link:'', location:'', recurring:'none', pinned:false, private:false,
-      createdAt:new Date().toISOString(), rsvp:{}, comments:[]
+      desc:(req.note||''), link:'', location:'', recurring:'none', pinned:false, private:false,
+      createdAt:new Date().toISOString(), rsvp:rsvpDone, comments:[]
     };
     if(!state.events[k]) state.events[k] = [];
     state.events[k].push(newEv);
