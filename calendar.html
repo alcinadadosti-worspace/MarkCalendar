@@ -2771,13 +2771,20 @@ async function setupAccounts(){
       pinMapData[h] = info.email;
     }catch(e){}
   }
-  if(ok === Object.keys(AUTH_USERS).length){
-    await db.collection('authSetupDone').doc('flag').set({ at: new Date().toISOString() });
-    await db.collection('pinMap').doc('map').set(pinMapData);
+  if(ok >= 1){
+    // logar como admin para ter permissao de escrita no Firestore
+    try{
+      await auth.signInWithEmailAndPassword(AUTH_USERS.admin.email, pinToPassword(passwords.admin));
+      await db.collection('authSetupDone').doc('flag').set({ at: new Date().toISOString() });
+      await db.collection('pinMap').doc('map').set(pinMapData);
+      await auth.signOut();
+    }catch(e){
+      console.error('Setup Firestore write failed:', e);
+    }
     $('#setupWrap').style.display = 'none';
-    toast('Contas criadas! Agora faça login.');
+    toast(ok + ' contas criadas! Agora faca login.');
   } else {
-    toast('Erro ao criar contas. Verifique se Email/Password está ativo no Firebase Console.');
+    toast('Erro ao criar contas. Ative Email/Password no Firebase Console.');
   }
 }
 
