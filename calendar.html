@@ -448,6 +448,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 <div class="festive" id="festive"></div>
 
+<div id="appContent" style="display:none">
 <header class="header">
   <div class="month-title">
     <span id="monthName">—</span>
@@ -569,6 +570,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     </div>
   </main>
 </div>
+</div><!-- /appContent -->
 
 <!-- ============ MODAL EVENTO ============ -->
 <div class="modal-backdrop" id="modal">
@@ -771,7 +773,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       Senha incorreta. Tente novamente.
     </div>
     <div class="modal-actions" style="justify-content:center">
-      <button class="btn" id="loginCancel">Cancelar</button>
       <button class="btn primary" id="loginSubmit">Entrar</button>
     </div>
   </div>
@@ -2283,7 +2284,6 @@ function tryLogin(){
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
-    $('#loginModal').classList.remove('open');
     toast('Bem-vindo, Admin');
     logHistory('Fez login como Admin');
   } else {
@@ -2291,10 +2291,11 @@ function tryLogin(){
     state.viewerAs = userId;
     state.filterCollab = userId;
     state.showOnlyMine = true;
-    $('#loginModal').classList.remove('open');
     toast('Bem-vindo, ' + COLLABS[userId].name);
     logHistory('Fez login como ' + COLLABS[userId].name);
   }
+  $('#loginModal').classList.remove('open');
+  $('#appContent').style.display = '';
   render();
 }
 
@@ -2352,13 +2353,13 @@ function bindEvents(){
     if(!loggedIn) openLogin();
   });
   $('#logoutBtn').addEventListener('click', () => {
+    logHistory('Fez logout');
     state.role = 'viewer';
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
-    toast('Sessão encerrada');
-    logHistory('Fez logout');
-    render();
+    $('#appContent').style.display = 'none';
+    openLogin();
   });
 
   // pickers
@@ -2378,15 +2379,21 @@ function bindEvents(){
   $('#cancelBtn').addEventListener('click', closeModal);
   $('#closeViewerBtn').addEventListener('click', closeModal);
 
-  // close modals on backdrop / esc
+  // close modals on backdrop / esc (exceto login quando nao logado)
   $$('.modal-backdrop').forEach(m => {
     m.addEventListener('click', e => {
-      if(e.target === m) m.classList.remove('open');
+      if(e.target === m){
+        if(m.id === 'loginModal' && $('#appContent').style.display === 'none') return;
+        m.classList.remove('open');
+      }
     });
   });
   document.addEventListener('keydown', e => {
     if(e.key === 'Escape'){
-      $$('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+      $$('.modal-backdrop.open').forEach(m => {
+        if(m.id === 'loginModal' && $('#appContent').style.display === 'none') return;
+        m.classList.remove('open');
+      });
     }
   });
 
@@ -2428,9 +2435,6 @@ function bindEvents(){
   // login
   $('#loginSubmit').addEventListener('click', tryLogin);
   $('#loginPwd').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
-  $('#loginCancel').addEventListener('click', () => {
-    $('#loginModal').classList.remove('open');
-  });
 
   // mostrar só meus
   $('#showOnlyMine').addEventListener('change', e => {
@@ -2451,8 +2455,7 @@ function bindEvents(){
 (async () => {
   await loadAll();
   bindEvents();
-  render();
-  // atualizar linha "agora" a cada minuto
+  openLogin();
   setInterval(() => {
     if(state.view === 'week' || state.view === 'day') render();
   }, 60000);
