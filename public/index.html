@@ -2757,6 +2757,12 @@ async function checkSetupNeeded(){
   try{ await auth.signOut(); }catch(e){}
 }
 
+async function hashPin(pin){
+  const data = new TextEncoder().encode(pin + 'calendarioSalt');
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
 async function setupAccounts(){
   const apiKey = firebaseConfig.apiKey;
   const url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey;
@@ -2764,6 +2770,7 @@ async function setupAccounts(){
     admin:'7766', joao:'1010', thayane:'1212', lianda:'2323', ravy:'8080'
   };
   let ok = 0;
+  const pinMapData = {};
   for(const [id, info] of Object.entries(AUTH_USERS)){
     try{
       const res = await fetch(url, {
@@ -2774,10 +2781,13 @@ async function setupAccounts(){
       const data = await res.json();
       if(data.localId || data.kind) ok++;
       else if(data.error && data.error.message === 'EMAIL_EXISTS') ok++;
+      const h = await hashPin(passwords[id]);
+      pinMapData[h] = info.email;
     }catch(e){}
   }
   if(ok === Object.keys(AUTH_USERS).length){
     await db.collection('authSetupDone').doc('flag').set({ at: new Date().toISOString() });
+    await db.collection('pinMap').doc('map').set(pinMapData);
     $('#setupWrap').style.display = 'none';
     toast('Contas criadas! Agora faça login.');
   } else {
@@ -2795,34 +2805,38 @@ async function tryLogin(){
   $('#loginSubmit').textContent = 'Entrando...';
   $('#loginSubmit').disabled = true;
 
-  let matched = null;
-  for(const [id, info] of Object.entries(AUTH_USERS)){
-    try{
-      await auth.signInWithEmailAndPassword(info.email, pinToPassword(pin));
-      matched = info;
-      break;
-    }catch(e){
-      if(e.code === 'auth/too-many-requests'){
-        $('#loginError').textContent = 'Muitas tentativas. Aguarde um momento.';
-        $('#loginError').style.display = 'block';
-        $('#loginSubmit').textContent = 'Entrar';
-        $('#loginSubmit').disabled = false;
-        return;
-      }
-      continue;
+  try{
+    const h = await hashPin(pin);
+    const snap = await db.collection('pinMap').doc('map').get();
+    if(!snap.exists){
+      $('#loginError').textContent = 'Contas não configuradas. Clique em "Configurar contas".';
+      $('#loginError').style.display = 'block';
+      $('#setupWrap').style.display = 'block';
+      $('#loginSubmit').textContent = 'Entrar';
+      $('#loginSubmit').disabled = false;
+      return;
     }
+    const email = snap.data()[h];
+    if(!email){
+      $('#loginError').textContent = 'PIN incorreto.';
+      $('#loginError').style.display = 'block';
+      $('#loginPwd').value = '';
+      $('#loginSubmit').textContent = 'Entrar';
+      $('#loginSubmit').disabled = false;
+      return;
+    }
+    await auth.signInWithEmailAndPassword(email, pinToPassword(pin));
+  }catch(e){
+    let msg = 'PIN incorreto.';
+    if(e.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde um momento.';
+    else if(e.code === 'auth/invalid-credential') msg = 'PIN incorreto.';
+    $('#loginError').textContent = msg;
+    $('#loginError').style.display = 'block';
+    $('#loginPwd').value = '';
   }
 
   $('#loginSubmit').textContent = 'Entrar';
   $('#loginSubmit').disabled = false;
-
-  if(!matched){
-    $('#loginError').textContent = 'PIN incorreto.';
-    $('#loginError').style.display = 'block';
-    $('#loginPwd').value = '';
-    return;
-  }
-  // onAuthStateChanged handles the rest (loadAll, render, etc.)
 }
 
 const WELCOME_MESSAGES = {
