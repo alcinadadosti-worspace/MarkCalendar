@@ -1050,22 +1050,35 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   <div class="modal" style="max-width:380px">
     <div class="lock-icon">🔐</div>
     <h3 style="text-align:center;justify-content:center">Entrar</h3>
-    <p class="sub" style="text-align:center">Digite sua senha para acessar o calendário</p>
+    <p class="sub" style="text-align:center">Selecione seu nome e digite a senha</p>
+    <div class="form-group">
+      <label>Usuário</label>
+      <select id="loginUser">
+        <option value="admin">Suzana (Admin)</option>
+        <option value="joao">João</option>
+        <option value="thayane">Thayane</option>
+        <option value="lianda">Lianda</option>
+        <option value="ravy">Ravy</option>
+      </select>
+    </div>
     <div class="form-group">
       <label>Senha</label>
       <input type="password" id="loginPwd" autocomplete="off" placeholder="••••••••">
     </div>
-    <div id="loginError" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;text-align:center;margin-bottom:8px">
-      Senha incorreta. Tente novamente.
-    </div>
+    <div id="loginError" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;text-align:center;margin-bottom:8px"></div>
     <div class="modal-actions" style="justify-content:center">
       <button class="btn primary" id="loginSubmit">Entrar</button>
+    </div>
+    <div id="setupWrap" style="display:none;margin-top:12px;border-top:1px dashed var(--muted);padding-top:12px;text-align:center">
+      <p style="font-size:11px;color:var(--ink-faint);margin-bottom:8px;font-style:italic">Primeira vez? Configure as contas.</p>
+      <button class="btn small" id="setupBtn">Configurar contas</button>
     </div>
   </div>
 </div>
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <script>
@@ -1081,8 +1094,18 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.firestore();
 const CALENDAR_COLLECTION = 'calendarData';
+
+const AUTH_USERS = {
+  admin:   { email:'suzana@equipe.cal',  role:'admin',  collabKey:null,    name:'Suzana' },
+  joao:    { email:'joao@equipe.cal',    role:'viewer', collabKey:'joao',  name:'João' },
+  thayane: { email:'thayane@equipe.cal', role:'viewer', collabKey:'thayane', name:'Thayane' },
+  lianda:  { email:'lianda@equipe.cal',  role:'viewer', collabKey:'lianda', name:'Lianda' },
+  ravy:    { email:'ravy@equipe.cal',    role:'viewer', collabKey:'ravy',  name:'Ravy' }
+};
+function authUserByEmail(email){ return Object.values(AUTH_USERS).find(function(u){ return u.email === email; }); }
 
 // Storage adapter: Firestore com cache em localStorage
 window.storage = {
@@ -1224,13 +1247,7 @@ const QUOTES = [
   'Sob, e por trás de tudo, sempre se haverá de encontrar a Verdade Fundamental.'
 ];
 
-const USER_PASSWORDS = {
-  admin:   '7766',
-  joao:    '1010',
-  thayane: '1212',
-  lianda:  '2323',
-  ravy:    '8080'
-};
+// Autenticacao via Firebase Auth (senhas nao ficam no codigo)
 
 // ============ ESTADO ============
 let state = {
@@ -1301,24 +1318,7 @@ function startRealtimeSync(){
   });
 }
 
-function saveSession(){
-  localStorage.setItem('session', JSON.stringify({ role: state.role, viewerAs: state.viewerAs }));
-}
-function clearSession(){
-  localStorage.removeItem('session');
-}
-function restoreSession(){
-  try{
-    var s = JSON.parse(localStorage.getItem('session'));
-    if(s && (s.role === 'admin' || s.viewerAs)){
-      state.role = s.role;
-      state.viewerAs = s.viewerAs;
-      if(s.viewerAs){ state.filterCollab = s.viewerAs; state.showOnlyMine = true; }
-      return true;
-    }
-  }catch(e){}
-  return false;
-}
+// Sessao gerenciada pelo Firebase Auth (onAuthStateChanged)
 
 // ============ HELPERS ============
 const $ = s => document.querySelector(s);
@@ -2742,43 +2742,101 @@ function rgbToHex(c){
   return '#000000';
 }
 
-// ============ LOGIN ============
+// ============ LOGIN (Firebase Auth) ============
 function openLogin(){
+  $('#loginUser').value = 'admin';
   $('#loginPwd').value = '';
   $('#loginError').style.display = 'none';
   $('#loginModal').classList.add('open');
+  checkSetupNeeded();
   setTimeout(()=>$('#loginPwd').focus(), 100);
 }
-function tryLogin(){
+
+async function checkSetupNeeded(){
+  try{
+    await auth.signInWithEmailAndPassword('suzana@equipe.cal', 'test');
+  }catch(e){
+    if(e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential'){
+      try{
+        const snap = await db.collection('authSetupDone').doc('flag').get();
+        if(!snap.exists) $('#setupWrap').style.display = 'block';
+      }catch(err){}
+    }
+  }
+  try{ await auth.signOut(); }catch(e){}
+}
+
+async function setupAccounts(){
+  const apiKey = firebaseConfig.apiKey;
+  const url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey;
+  const passwords = {
+    admin:'7766', joao:'1010', thayane:'1212', lianda:'2323', ravy:'8080'
+  };
+  let ok = 0;
+  for(const [id, info] of Object.entries(AUTH_USERS)){
+    try{
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ email:info.email, password:passwords[id], returnSecureToken:false })
+      });
+      const data = await res.json();
+      if(data.localId || data.kind) ok++;
+      else if(data.error && data.error.message === 'EMAIL_EXISTS') ok++;
+    }catch(e){}
+  }
+  if(ok === Object.keys(AUTH_USERS).length){
+    await db.collection('authSetupDone').doc('flag').set({ at: new Date().toISOString() });
+    $('#setupWrap').style.display = 'none';
+    toast('Contas criadas! Agora faça login.');
+  } else {
+    toast('Erro ao criar contas. Verifique se Email/Password está ativo no Firebase Console.');
+  }
+}
+
+async function tryLogin(){
+  const userId = $('#loginUser').value;
   const pwd = $('#loginPwd').value;
-  const match = Object.entries(USER_PASSWORDS).find(([, p]) => p === pwd);
-  if(!match){
+  const userInfo = AUTH_USERS[userId];
+  if(!userInfo || !pwd){ $('#loginError').textContent = 'Preencha a senha.'; $('#loginError').style.display = 'block'; return; }
+
+  try{
+    await auth.signInWithEmailAndPassword(userInfo.email, pwd);
+  }catch(e){
+    let msg = 'Senha incorreta.';
+    if(e.code === 'auth/user-not-found') msg = 'Conta não encontrada. Clique em "Configurar contas" abaixo.';
+    else if(e.code === 'auth/wrong-password' || e.code === 'auth/invalid-credential') msg = 'Senha incorreta. Tente novamente.';
+    else if(e.code === 'auth/too-many-requests') msg = 'Muitas tentativas. Aguarde um momento.';
+    $('#loginError').textContent = msg;
     $('#loginError').style.display = 'block';
     $('#loginPwd').value = '';
     return;
   }
-  const [userId] = match;
-  if(userId === 'admin'){
+
+  applyUserRole(userInfo);
+  $('#loginModal').classList.remove('open');
+  $('#appContent').style.display = '';
+  startRealtimeSync();
+  render();
+  initUserLocation();
+}
+
+function applyUserRole(userInfo){
+  if(userInfo.role === 'admin'){
     state.role = 'admin';
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
-    toast('Bem-vindo, ' + ADMIN_USER.name);
-    logHistory('Fez login como ' + ADMIN_USER.name);
+    toast('Bem-vindo, ' + userInfo.name);
+    logHistory('Fez login como ' + userInfo.name);
   } else {
     state.role = 'viewer';
-    state.viewerAs = userId;
-    state.filterCollab = userId;
+    state.viewerAs = userInfo.collabKey;
+    state.filterCollab = userInfo.collabKey;
     state.showOnlyMine = true;
-    toast('Bem-vindo, ' + COLLABS[userId].name);
-    logHistory('Fez login como ' + COLLABS[userId].name);
+    toast('Bem-vindo, ' + userInfo.name);
+    logHistory('Fez login como ' + userInfo.name);
   }
-  $('#loginModal').classList.remove('open');
-  $('#appContent').style.display = '';
-  saveSession();
-  startRealtimeSync();
-  render();
-  initUserLocation();
 }
 
 // ============ BUSCA ============
@@ -2882,11 +2940,11 @@ function bindEvents(){
   });
   $('#logoutBtn').addEventListener('click', () => {
     logHistory('Fez logout');
+    auth.signOut();
     state.role = 'viewer';
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
-    clearSession();
     $('#appContent').style.display = 'none';
     openLogin();
   });
@@ -2985,6 +3043,13 @@ function bindEvents(){
   // login
   $('#loginSubmit').addEventListener('click', tryLogin);
   $('#loginPwd').addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
+  $('#setupBtn').addEventListener('click', async () => {
+    $('#setupBtn').textContent = 'Criando contas...';
+    $('#setupBtn').disabled = true;
+    await setupAccounts();
+    $('#setupBtn').textContent = 'Configurar contas';
+    $('#setupBtn').disabled = false;
+  });
 
   // busca de eventos
   let searchTimeout;
@@ -3013,14 +3078,26 @@ function bindEvents(){
 (async () => {
   await loadAll();
   bindEvents();
-  if(restoreSession()){
-    $('#appContent').style.display = '';
-    startRealtimeSync();
-    render();
-    initUserLocation();
-  } else {
-    openLogin();
-  }
+
+  // Firebase Auth session restore
+  auth.onAuthStateChanged(function(user){
+    if(user){
+      const userInfo = authUserByEmail(user.email);
+      if(userInfo){
+        applyUserRole(userInfo);
+        $('#loginModal').classList.remove('open');
+        $('#appContent').style.display = '';
+        startRealtimeSync();
+        render();
+        initUserLocation();
+      } else {
+        auth.signOut();
+        openLogin();
+      }
+    } else {
+      openLogin();
+    }
+  });
   setInterval(() => {
     if(state.view === 'week' || state.view === 'day') render();
   }, 60000);
