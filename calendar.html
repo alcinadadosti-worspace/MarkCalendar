@@ -1054,7 +1054,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <h3 style="text-align:center;justify-content:center">Entrar</h3>
     <p class="sub" style="text-align:center">Digite seu PIN de 4 dígitos</p>
     <div class="form-group" style="text-align:center">
-      <input type="password" id="loginPwd" autocomplete="off" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="text-align:center;font-size:28px;letter-spacing:12px;padding:14px 20px;max-width:200px;margin:0 auto">
+      <input type="tel" id="loginPwd" autocomplete="one-time-code" placeholder="••••" maxlength="4" inputmode="numeric" pattern="[0-9]*" style="text-align:center;font-size:28px;letter-spacing:12px;padding:14px 20px;max-width:200px;margin:0 auto;-webkit-text-security:disc">
     </div>
     <div id="loginError" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;text-align:center;margin-bottom:8px"></div>
     <div class="modal-actions" style="justify-content:center">
