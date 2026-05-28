@@ -1764,12 +1764,21 @@ function quoteOfTheDay(){
 }
 
 // detecta carga horária por colaborador num mês
+function countEvent(e, counts){
+  if(e.tasks && e.tasks.length){
+    const seen = new Set();
+    e.tasks.forEach(t => {
+      if(counts[t.collab]!=null && !seen.has(t.collab)){ counts[t.collab]++; seen.add(t.collab); }
+    });
+  } else if(counts[e.collab]!=null) counts[e.collab]++;
+}
+
 function eventsByCollabInMonth(y, m){
   const counts = {joao:0, thayane:0, lianda:0, ravy:0};
   Object.keys(state.events).forEach(k => {
     const [yy,mm] = k.split('-').map(Number);
     if(yy===y && mm===m+1){
-      state.events[k].forEach(e => { if(counts[e.collab]!=null) counts[e.collab]++; });
+      state.events[k].forEach(e => countEvent(e, counts));
     }
   });
   return counts;
@@ -1780,7 +1789,7 @@ function eventsByCollabInWeek(weekStart){
   for(let i=0;i<7;i++){
     const d = new Date(weekStart); d.setDate(d.getDate()+i);
     const k = keyFromDate(d);
-    (state.events[k]||[]).forEach(e => { if(counts[e.collab]!=null) counts[e.collab]++; });
+    (state.events[k]||[]).forEach(e => countEvent(e, counts));
   }
   return counts;
 }
@@ -2346,7 +2355,14 @@ function renderMonth(){
 
     // workload bar (top)
     const dayCounts = {joao:0,thayane:0,lianda:0,ravy:0};
-    (state.events[key]||[]).forEach(e => { if(dayCounts[e.collab]!=null) dayCounts[e.collab]++; });
+    (state.events[key]||[]).forEach(e => {
+      if(e.tasks && e.tasks.length){
+        const seen = new Set();
+        e.tasks.forEach(t => {
+          if(dayCounts[t.collab]!=null && !seen.has(t.collab)){ dayCounts[t.collab]++; seen.add(t.collab); }
+        });
+      } else if(dayCounts[e.collab]!=null) dayCounts[e.collab]++;
+    });
     const dayTotal = Object.values(dayCounts).reduce((a,b)=>a+b,0);
     if(dayTotal > 0){
       const bar = document.createElement('div');
@@ -3084,7 +3100,8 @@ function saveEvent(){
     const ev = editingEvent;
     const oldTitle = ev.title;
     ev.title = title;
-    ev.collab = formSelectedCollab;
+    const editUnique = new Set(formTasks.map(t => t.collab));
+    ev.collab = editUnique.size > 1 ? 'todos' : formSelectedCollab;
     ev.type = formSelectedType;
     ev.startTime = start;
     ev.endTime = end;
@@ -3099,10 +3116,14 @@ function saveEvent(){
     save('events');
     toast('Evento atualizado');
   } else {
+    // se tem tarefas para 2+ colaboradores, evento usa cor "multi" (roxa)
+    // mas continua visivel APENAS para quem tem tarefa (controle por evVisibleTo)
+    const uniqueTaskCollabs = new Set(formTasks.map(t => t.collab));
+    const eventColor = uniqueTaskCollabs.size > 1 ? 'todos' : formSelectedCollab;
     const newEv = {
       id: uid(),
       title,
-      collab: formSelectedCollab,
+      collab: eventColor,
       type: formSelectedType,
       startTime: start,
       endTime: end,
