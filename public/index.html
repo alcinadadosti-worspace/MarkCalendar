@@ -1054,6 +1054,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <button class="btn small" id="myDayBtn" style="display:none;margin-top:8px;width:100%">☀️ Meu dia</button>
       <button class="btn small" id="messagesBtn" style="display:none;margin-top:6px;width:100%;position:relative">💬 Mensagens <span id="messagesBadge" style="display:none"></span></button>
       <button class="btn small" id="kudosBtn" style="display:none;margin-top:6px;width:100%;position:relative">⭐ Dar elogio <span id="kudosBadge" style="display:none"></span></button>
+      <button class="btn small" id="diaryBtn" style="display:none;margin-top:6px;width:100%">📔 Meu diário</button>
       <button class="btn small" id="requestMeetingBtn" style="display:none;margin-top:6px;width:100%">📅 Solicitar reunião</button>
       <div id="meetingInvites"></div>
     </div>
@@ -1340,13 +1341,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <button class="btn small" id="addBlockBtn">+ Bloquear</button>
     </div>
 
-    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:18px 0 8px">📔 Diário de hoje</h4>
-    <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Reflexões pessoais sobre o seu dia (só você vê)</p>
-    <textarea id="diaryText" placeholder="Como foi seu dia? O que aprendeu?" maxlength="2000" style="width:100%;min-height:80px;border:1.5px solid var(--ink);border-radius:6px;padding:10px;font-family:Fraunces,serif;font-style:italic;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical;outline:none"></textarea>
-    <button class="btn small primary" id="saveDiaryBtn" style="margin-top:6px">Salvar diário</button>
-
-    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:18px 0 8px">📖 Diários anteriores</h4>
-    <div id="diaryHistory" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
 
     <div class="modal-actions">
       <button class="btn primary" onclick="document.getElementById('myDayModal').classList.remove('open')">Fechar</button>
@@ -1370,6 +1364,33 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     </div>
     <div class="modal-actions">
       <button class="btn" onclick="document.getElementById('messagesModal').classList.remove('open')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DIARY ============ -->
+<div class="modal-backdrop" id="diaryModal">
+  <div class="modal wide">
+    <h3>📔 Meu diário</h3>
+    <p class="sub">Reflexões pessoais sobre cada dia (só você vê)</p>
+
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center">
+      <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft)">Data:</label>
+      <input type="date" id="diaryDate" style="padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
+      <button class="btn small" id="diaryTodayBtn">Hoje</button>
+    </div>
+
+    <textarea id="diaryFullText" placeholder="Como foi seu dia? O que aprendeu? O que melhorar amanhã?" maxlength="3000" style="width:100%;min-height:150px;border:1.5px solid var(--ink);border-radius:8px;padding:12px;font-family:Fraunces,serif;font-style:italic;font-size:14px;line-height:1.55;background:var(--bg);color:var(--ink);resize:vertical;outline:none"></textarea>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+      <span id="diaryWordCount" style="font-size:11px;color:var(--ink-faint)"></span>
+      <button class="btn small primary" id="diaryFullSaveBtn">Salvar entrada</button>
+    </div>
+
+    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:20px 0 8px">📖 Entradas anteriores</h4>
+    <div id="diaryAllHistory" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
+
+    <div class="modal-actions">
+      <button class="btn primary" onclick="document.getElementById('diaryModal').classList.remove('open')">Fechar</button>
     </div>
   </div>
 </div>
@@ -2291,6 +2312,8 @@ function renderSidebar(){
   if(msgsBtn) msgsBtn.style.display = state.viewerAs ? '' : 'none';
   const kBtn = $('#kudosBtn');
   if(kBtn) kBtn.style.display = state.viewerAs ? '' : 'none';
+  const dBtn = $('#diaryBtn');
+  if(dBtn) dBtn.style.display = state.viewerAs ? '' : 'none';
   renderMessagesBadge();
   renderKudosBadge();
   const invWrap = $('#meetingInvites');
@@ -4277,34 +4300,6 @@ function openMyDay(){
   renderPriorities();
   // bloqueios
   renderBlocks();
-  // diario
-  const myDiary = (state.diary[today] || {})[userKey] || '';
-  $('#diaryText').value = myDiary;
-
-  // historico de diarios (ultimos 30 dias com entradas)
-  const histWrap = $('#diaryHistory');
-  if(histWrap){
-    const entries = Object.entries(state.diary || {})
-      .filter(([dk]) => dk !== today)
-      .map(([dk, byUser]) => ({ dk, text: byUser[userKey] }))
-      .filter(e => e.text)
-      .sort((a, b) => b.dk.localeCompare(a.dk))
-      .slice(0, 30);
-    if(!entries.length){
-      histWrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma entrada anterior</span>';
-    } else {
-      histWrap.innerHTML = entries.map(e => {
-        const [y,m,d] = e.dk.split('-');
-        const dt = new Date(+y, +m-1, +d);
-        const dayName = dt.toLocaleDateString('pt-BR', {weekday:'short', day:'numeric', month:'short'});
-        return `<div style="border:1px solid var(--muted);border-radius:8px;padding:10px;background:var(--bg)">
-          <div style="font-size:11px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;margin-bottom:4px">${dayName}</div>
-          <div style="font-family:Fraunces,serif;font-style:italic;font-size:12.5px;line-height:1.45;white-space:pre-wrap">${escapeHtml(e.text)}</div>
-        </div>`;
-      }).join('');
-    }
-  }
-
   $('#myDayModal').classList.add('open');
 }
 
@@ -4409,17 +4404,87 @@ function addBlock(){
   renderBlocks();
 }
 
-function saveDiary(){
-  const today = todayKey;
-  const userKey = state.viewerAs;
-  if(!userKey) return;
-  const text = $('#diaryText').value.trim();
-  if(!state.diary[today]) state.diary[today] = {};
-  if(text) state.diary[today][userKey] = text;
-  else delete state.diary[today][userKey];
-  if(Object.keys(state.diary[today]).length === 0) delete state.diary[today];
+
+// ============ DIARY ============
+function openDiary(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  if(!userKey){ toast('Faça login'); return; }
+  $('#diaryDate').value = todayKey;
+  loadDiaryForDate();
+  renderDiaryAllHistory();
+  $('#diaryModal').classList.add('open');
+}
+function loadDiaryForDate(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  const date = $('#diaryDate').value;
+  const txt = ((state.diary[date] || {})[userKey]) || '';
+  $('#diaryFullText').value = txt;
+  updateDiaryWordCount();
+}
+function updateDiaryWordCount(){
+  const txt = $('#diaryFullText').value.trim();
+  const words = txt ? txt.split(/\s+/).length : 0;
+  const chars = txt.length;
+  $('#diaryWordCount').textContent = words > 0 ? `${words} palavra(s) · ${chars} caractere(s)` : '';
+}
+function saveDiaryFull(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  const date = $('#diaryDate').value;
+  if(!userKey || !date) return;
+  const text = $('#diaryFullText').value.trim();
+  if(!state.diary[date]) state.diary[date] = {};
+  if(text) state.diary[date][userKey] = text;
+  else delete state.diary[date][userKey];
+  if(Object.keys(state.diary[date]).length === 0) delete state.diary[date];
   save('diary');
-  toast('Diário salvo');
+  toast('Entrada salva');
+  renderDiaryAllHistory();
+}
+function renderDiaryAllHistory(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  const wrap = $('#diaryAllHistory');
+  if(!wrap || !userKey) return;
+  const entries = Object.entries(state.diary || {})
+    .map(([dk, byUser]) => ({ dk, text: byUser[userKey] }))
+    .filter(e => e.text)
+    .sort((a, b) => b.dk.localeCompare(a.dk));
+  if(!entries.length){
+    wrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma entrada ainda. Escreva sua primeira!</span>';
+    return;
+  }
+  wrap.innerHTML = entries.map(e => {
+    const [y,m,d] = e.dk.split('-');
+    const dt = new Date(+y, +m-1, +d);
+    const dayName = dt.toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'});
+    const isToday = e.dk === todayKey;
+    return `<div class="diary-entry" data-diary-date="${e.dk}" style="border:1.5px solid var(--muted);border-radius:8px;padding:12px;background:var(--card);cursor:pointer;transition:all .15s">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <strong style="font-size:13px;text-transform:capitalize">${dayName}${isToday?' · hoje':''}</strong>
+        <button class="task-remove" data-diary-rm="${e.dk}" title="Excluir">&times;</button>
+      </div>
+      <div style="font-family:Fraunces,serif;font-style:italic;font-size:13px;line-height:1.5;white-space:pre-wrap;color:var(--ink-soft)">${escapeHtml(e.text.slice(0,200))}${e.text.length > 200 ? '...' : ''}</div>
+    </div>`;
+  }).join('');
+  wrap.querySelectorAll('.diary-entry').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if(e.target.closest('[data-diary-rm]')) return;
+      $('#diaryDate').value = el.dataset.diaryDate;
+      loadDiaryForDate();
+      $('#diaryFullText').focus();
+    });
+  });
+  wrap.querySelectorAll('[data-diary-rm]').forEach(b => {
+    b.addEventListener('click', () => {
+      if(!confirm('Excluir esta entrada do diário?')) return;
+      const date = b.dataset.diaryRm;
+      if(state.diary[date]){ delete state.diary[date][userKey]; }
+      if(state.diary[date] && Object.keys(state.diary[date]).length === 0) delete state.diary[date];
+      save('diary');
+      renderDiaryAllHistory();
+      if($('#diaryDate').value === date) loadDiaryForDate();
+      toast('Entrada excluída');
+    });
+  });
 }
 
 // ============ KUDOS ============
@@ -4687,10 +4752,14 @@ function bindEvents(){
   $('#myDayBtn').addEventListener('click', openMyDay);
   $('#messagesBtn').addEventListener('click', openMessages);
   $('#kudosBtn').addEventListener('click', openKudos);
+  $('#diaryBtn').addEventListener('click', openDiary);
+  $('#diaryDate').addEventListener('change', loadDiaryForDate);
+  $('#diaryTodayBtn').addEventListener('click', () => { $('#diaryDate').value = todayKey; loadDiaryForDate(); });
+  $('#diaryFullText').addEventListener('input', updateDiaryWordCount);
+  $('#diaryFullSaveBtn').addEventListener('click', saveDiaryFull);
   $('#addPriorityBtn').addEventListener('click', addPriority);
   $('#newPriorityInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addPriority(); } });
   $('#addBlockBtn').addEventListener('click', addBlock);
-  $('#saveDiaryBtn').addEventListener('click', saveDiary);
   $('#kudosSendBtn').addEventListener('click', sendKudos);
   $('#msgSendBtn').addEventListener('click', sendMessage);
   $('#msgInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); sendMessage(); } });
