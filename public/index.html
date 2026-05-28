@@ -1749,7 +1749,8 @@ function evDoneFor(ev, who){
   if(!who) return evFullyDone(ev);
   if(ev.tasks && ev.tasks.length){
     const myTasks = ev.tasks.filter(t => typeof t === 'object' && t.collab === who);
-    if(myTasks.length){ return myTasks.every(t => t.done); }
+    if(myTasks.length) return myTasks.every(t => t.done);
+    return false;
   }
   return !!ev.completed;
 }
@@ -3140,6 +3141,11 @@ function deleteEvent(id){
   const list = state.events[activeDateKey] || [];
   const ev = list.find(x => x.id === id);
   if(!ev) return;
+  // permissao: admin sempre, viewer so se for participante da reuniao
+  if(state.role !== 'admin'){
+    const isMyMeeting = ev.type === 'reuniao' && ev.collab === 'todos' && ev.rsvp && ev.rsvp[state.viewerAs] === 'yes';
+    if(!isMyMeeting){ toast('Sem permissão para excluir'); return; }
+  }
   if(!confirm(`Excluir "${ev.title}"?`)) return;
   state.events[activeDateKey] = list.filter(x => x.id !== id);
   if(state.events[activeDateKey].length === 0) delete state.events[activeDateKey];
@@ -3249,6 +3255,10 @@ function saveEvent(){
         if(intervalMonths) next.setMonth(base.getMonth()+(i*intervalMonths));
         const k = keyFromDate(next);
         const clone = {...newEv, id: uid(), recurringSource: newEv.id};
+        if(clone.tasks && clone.tasks.length) clone.tasks = clone.tasks.map(t => ({...t, id: uid(), done: false}));
+        clone.rsvp = {};
+        clone.comments = [];
+        clone.completed = false;
         if(!state.events[k]) state.events[k] = [];
         state.events[k].push(clone);
       }
@@ -3653,7 +3663,8 @@ function renderSearch(query){
       if(state.role === 'viewer' && state.viewerAs && !evVisibleTo(ev, state.viewerAs)) continue;
       const c = COLLABS[ev.collab];
       const type = EVENT_TYPES[ev.type || 'outro'];
-      const haystack = [ev.title, ev.desc, c.name, type.label, ev.location, dateKey].join(' ').toLowerCase();
+      const taskText = (ev.tasks || []).map(t => typeof t === 'object' ? t.text : t).join(' ');
+      const haystack = [ev.title, ev.desc, c.name, type.label, ev.location, dateKey, taskText].join(' ').toLowerCase();
       if(haystack.includes(q)){
         results.push({ dateKey, ev, collab: c, type });
       }
