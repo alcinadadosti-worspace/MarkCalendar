@@ -1735,6 +1735,12 @@ function startRealtimeSync(){
 // ============ HELPERS ============
 const $ = s => document.querySelector(s);
 function evVisibleTo(ev, who){ return ev.collab === who || ev.collab === 'todos' || (ev.tasks && ev.tasks.some(t => t.collab === who)); }
+function evFullyDone(ev){
+  if(ev.tasks && ev.tasks.length){
+    return ev.tasks.every(t => typeof t === 'object' && t.done);
+  }
+  return !!ev.completed;
+}
 function evGradient(ev){
   if(!ev.tasks || ev.tasks.length === 0) return null;
   const unique = [...new Set(ev.tasks.map(t => t.collab))].filter(c => COLLABS[c]);
@@ -2441,7 +2447,7 @@ function renderMonth(){
       const isDimmed = state.filterCollab && ev.collab !== state.filterCollab && !state.showOnlyMine;
       const isTeamReadonly = state.viewMode === 'team' && state.viewerAs && !evVisibleTo(ev, state.viewerAs);
       const eEl = document.createElement('div');
-      eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '') + (ev.completed ? ' completed' : '') + (isTeamReadonly ? ' team-readonly' : '');
+      eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '') + (evFullyDone(ev) ? ' completed' : '') + (isTeamReadonly ? ' team-readonly' : '');
       const grad = evGradient(ev);
       if(grad){ eEl.style.background = grad; eEl.style.color = 'var(--ink)'; }
       let timeBit = '';
@@ -2916,7 +2922,7 @@ function renderExistingEvents(){
 
     let actionsHTML = '';
     if(state.role === 'admin'){
-      const completedBadge = ev.completed ? `<span class="ee-completed">✅ Concluído</span>` : '';
+      const completedBadge = evFullyDone(ev) ? `<span class="ee-completed">✅ Concluído</span>` : '';
       actionsHTML = `
         <div class="ee-actions">
           ${completedBadge}
@@ -2925,9 +2931,23 @@ function renderExistingEvents(){
         </div>
       `;
     } else if(state.role === 'viewer' && state.viewMode !== 'team' && evVisibleTo(ev, state.viewerAs)){
-      const completeBtn = ev.completed
-        ? `<span class="ee-completed">✅ Concluído</span>`
-        : `<button class="btn small" data-act="complete" data-id="${ev.id}">✓ Concluir</button>`;
+      const hasTasks = ev.tasks && ev.tasks.length;
+      let completeBtn = '';
+      if(!hasTasks){
+        completeBtn = ev.completed
+          ? `<span class="ee-completed">✅ Concluído</span>`
+          : `<button class="btn small" data-act="complete" data-id="${ev.id}">✓ Concluir</button>`;
+      } else {
+        // mostrar progresso das tarefas pessoais
+        const myTasks = ev.tasks.filter(t => (typeof t === 'object' ? t.collab : ev.collab) === state.viewerAs);
+        if(myTasks.length){
+          const doneCount = myTasks.filter(t => typeof t === 'object' && t.done).length;
+          const allMyDone = doneCount === myTasks.length;
+          completeBtn = allMyDone
+            ? `<span class="ee-completed">✅ Suas tarefas concluídas (${doneCount}/${myTasks.length})</span>`
+            : `<span style="font-size:11px;color:var(--ink-soft);font-style:italic">Suas tarefas: ${doneCount}/${myTasks.length} feitas</span>`;
+        }
+      }
       const swapBtn = ev.collab !== 'todos' ? `<button class="btn small" data-act="swap" data-id="${ev.id}" data-key="${activeDateKey}">↔ Solicitar troca</button>` : '';
       const isMyMeeting = ev.type === 'reuniao' && ev.collab === 'todos' && ev.rsvp && ev.rsvp[state.viewerAs] === 'yes';
       const cancelBtn = isMyMeeting ? `<button class="btn small danger" data-act="delete" data-id="${ev.id}">Cancelar reunião</button>` : '';
@@ -3017,8 +3037,16 @@ function renderExistingEvents(){
       }
       if(!task) return;
       task.done = cb.checked;
+      // auto-marcar evento como concluido se todas tarefas estao feitas
+      if(ev.tasks.every(t => typeof t === 'object' && t.done)){
+        ev.completed = true;
+        ev.completedAt = ev.completedAt || new Date().toISOString();
+      } else {
+        ev.completed = false;
+      }
       save('events');
       renderExistingEvents();
+      render();
     });
   });
   container.querySelectorAll('[data-act="swap"]').forEach(b => {
