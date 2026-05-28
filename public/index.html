@@ -305,6 +305,9 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .task-check{display:flex;align-items:center;gap:6px;font-size:12px;padding:4px 0}
 .task-check input{width:16px;height:16px;accent-color:var(--ink)}
 .task-check.done .task-label{text-decoration:line-through;opacity:.6}
+.task-check.locked{opacity:0.65;cursor:not-allowed}
+.task-check.locked input{cursor:not-allowed}
+.task-check.locked .task-label{color:var(--ink-soft)}
 
 /* upcoming */
 .upcoming{display:flex;flex-direction:column;gap:8px}
@@ -2881,8 +2884,9 @@ function renderExistingEvents(){
         const name = c ? c.name : col;
         tasksLine += `<div style="margin-bottom:6px"><div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;margin-bottom:2px">${photo} ${name}</div>`;
         tasks.forEach(task => {
-          tasksLine += `<div class="task-check${task.done?' done':''}">
-            <input type="checkbox" data-task-ev="${ev.id}" data-task-id="${task.id}" ${task.done?'checked':''}>
+          const canCheck = state.role === 'admin' || state.viewerAs === task.collab;
+          tasksLine += `<div class="task-check${task.done?' done':''}${!canCheck?' locked':''}">
+            <input type="checkbox" data-task-ev="${ev.id}" data-task-id="${task.id}" ${task.done?'checked':''}${!canCheck?' disabled':''}>
             <span class="task-label">${escapeHtml(task.text)}</span>
           </div>`;
         });
@@ -3036,6 +3040,12 @@ function renderExistingEvents(){
         task = ev.tasks.find(t => t && t.id === taskId);
       }
       if(!task) return;
+      // so admin ou dono da tarefa pode marcar
+      if(state.role !== 'admin' && state.viewerAs !== task.collab){
+        cb.checked = task.done;
+        toast('Apenas ' + (COLLABS[task.collab]?COLLABS[task.collab].name:task.collab) + ' pode marcar esta tarefa');
+        return;
+      }
       task.done = cb.checked;
       // auto-marcar evento como concluido se todas tarefas estao feitas
       if(ev.tasks.every(t => typeof t === 'object' && t.done)){
