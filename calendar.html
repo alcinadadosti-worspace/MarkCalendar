@@ -317,6 +317,37 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .ev-flag-badge.help{background:#FFE0B2;color:#E65100;border-color:#E65100;animation:badgePulse 2s ease infinite}
 .ev-flag-badge.offer{background:#C8E6C9;color:#2E7D32;border-color:#2E7D32}
 
+/* messages layout */
+.msg-layout{display:flex;height:70vh;min-height:420px}
+.msg-sidebar{width:240px;border-right:1.5px solid var(--muted);display:flex;flex-direction:column;background:var(--bg)}
+.msg-chat{flex:1;display:flex;flex-direction:column;background:var(--card)}
+.msg-chat-header{padding:12px 16px;border-bottom:1.5px solid var(--muted);display:flex;align-items:center;gap:10px;background:var(--card)}
+.msg-back{display:none;border:none;background:transparent;font-size:20px;cursor:pointer;color:var(--ink);padding:4px 8px;border-radius:6px}
+.msg-back:hover{background:var(--bg-2)}
+.msg-contact{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--muted);cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
+.msg-contact:hover{background:var(--bg-2)}
+.msg-contact.active{background:var(--bg-2);border-left:3px solid var(--ink)}
+.msg-contact img{width:38px;height:38px;border-radius:50%;object-fit:cover;border:1.5px solid var(--ink);flex-shrink:0}
+.msg-contact-avatar-fallback{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-family:Fraunces,serif;font-weight:700;font-size:14px;border:1.5px solid var(--ink);flex-shrink:0}
+.msg-contact-info{flex:1;min-width:0}
+.msg-contact-name{font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.msg-contact-time{font-size:9.5px;color:var(--ink-faint);font-weight:400;font-family:Inter,sans-serif;text-transform:none;letter-spacing:0}
+.msg-contact-preview{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;font-style:italic;font-family:Fraunces,serif}
+.msg-unread-badge{background:var(--danger);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:999px;min-width:18px;text-align:center}
+.msg-bubble{max-width:75%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.4;word-wrap:break-word;animation:bubbleIn .2s ease}
+@keyframes bubbleIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.msg-bubble.me{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:4px}
+.msg-bubble.other{align-self:flex-start;background:var(--card);color:var(--ink);border:1px solid var(--muted);border-bottom-left-radius:4px}
+.msg-bubble .when{font-size:9.5px;opacity:0.65;margin-top:3px;display:block}
+@media(max-width:680px){
+  .msg-layout{height:85vh}
+  .msg-sidebar{width:100%;display:flex}
+  .msg-chat{display:none}
+  .msg-layout.chat-open .msg-sidebar{display:none}
+  .msg-layout.chat-open .msg-chat{display:flex}
+  .msg-back{display:block}
+}
+
 /* mention & thanks */
 .ev-mention{font-size:11px;display:inline-block}
 .comment-thanks{border:1px solid var(--muted);background:var(--bg);color:var(--ink-soft);font-size:10px;padding:2px 6px;border-radius:999px;cursor:pointer;transition:all .15s;flex-shrink:0}
@@ -1350,20 +1381,30 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 <!-- ============ MESSAGES ============ -->
 <div class="modal-backdrop" id="messagesModal">
-  <div class="modal">
-    <h3>💬 Mensagens diretas</h3>
-    <p class="sub">Conversa privada com colegas</p>
-    <div class="form-group">
-      <label>Para:</label>
-      <select id="msgTo" style="width:100%;padding:10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)"></select>
-    </div>
-    <div id="msgThread" style="background:var(--bg-2);border-radius:8px;padding:12px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;min-height:140px"></div>
-    <div style="display:flex;gap:6px">
-      <input type="text" id="msgInput" placeholder="Escreva uma mensagem..." maxlength="300" style="flex:1;padding:10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
-      <button class="btn small primary" id="msgSendBtn">Enviar</button>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="document.getElementById('messagesModal').classList.remove('open')">Fechar</button>
+  <div class="modal wide" style="padding:0;overflow:hidden;max-width:720px">
+    <div class="msg-layout">
+      <div class="msg-sidebar" id="msgSidebar">
+        <div style="padding:16px 16px 8px;border-bottom:1.5px solid var(--muted)">
+          <h3 style="font-size:18px;margin:0">💬 Mensagens</h3>
+        </div>
+        <div id="msgContactsList" style="overflow-y:auto;flex:1"></div>
+      </div>
+      <div class="msg-chat" id="msgChat">
+        <div class="msg-chat-header" id="msgChatHeader">
+          <button class="msg-back" id="msgBackBtn" style="display:none">←</button>
+          <div id="msgChatHeaderInfo" style="flex:1;display:flex;align-items:center;gap:10px"></div>
+          <button class="icon-btn" onclick="document.getElementById('messagesModal').classList.remove('open')" style="width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        </div>
+        <div id="msgThread" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--bg-2)"></div>
+        <div id="msgInputWrap" style="padding:12px;border-top:1.5px solid var(--muted);display:flex;gap:6px;background:var(--card)">
+          <input type="text" id="msgInput" placeholder="Mensagem..." maxlength="300" style="flex:1;padding:10px 12px;border:1.5px solid var(--ink);border-radius:999px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
+          <button class="btn small primary" id="msgSendBtn" style="border-radius:999px;min-width:60px">→</button>
+        </div>
+        <div id="msgEmpty" style="display:none;flex:1;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--ink-soft);font-family:Fraunces,serif;font-style:italic;text-align:center;padding:32px">
+          <div style="font-size:48px">💬</div>
+          <p>Selecione um contato para conversar</p>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -4536,54 +4577,133 @@ function sendKudos(){
 }
 
 // ============ MESSAGES ============
+let activeChatContact = null;
+
 function openMessages(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
   if(!userKey){ toast('Faça login'); return; }
-  const sel = $('#msgTo');
-  const opts = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== userKey)
-    .map(([k, c]) => `<option value="${k}">${c.name}</option>`).join('');
-  sel.innerHTML = opts + (userKey !== 'admin' ? `<option value="admin">${ADMIN_USER.name}</option>` : '');
-  sel.onchange = renderMsgThread;
-  renderMsgThread();
+  activeChatContact = null;
+  renderMsgContacts();
+  renderMsgChat();
+  document.querySelector('.msg-layout').classList.remove('chat-open');
   $('#messagesModal').classList.add('open');
-  // marcar como lidas
-  (state.messages||[]).forEach(m => { if(m.to === userKey) m.read = true; });
-  save('messages');
-  renderMessagesBadge();
 }
-function renderMsgThread(){
+
+function renderMsgContacts(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
-  const other = $('#msgTo').value;
-  const thread = (state.messages||[]).filter(m =>
-    (m.from === userKey && m.to === other) || (m.from === other && m.to === userKey)
-  );
-  const wrap = $('#msgThread');
-  if(!thread.length){
-    wrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic;text-align:center">Nenhuma mensagem ainda</span>';
-    return;
-  }
-  wrap.innerHTML = thread.map(m => {
-    const isMe = m.from === userKey;
-    const dt = new Date(m.when);
-    const when = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-    return `<div style="align-self:${isMe?'flex-end':'flex-start'};background:${isMe?'var(--ink)':'var(--card)'};color:${isMe?'var(--bg)':'var(--ink)'};padding:8px 12px;border-radius:12px;max-width:75%;font-size:13px">
-      ${escapeHtml(m.text)}
-      <div style="font-size:9px;opacity:0.7;margin-top:2px">${when}</div>
+  const wrap = $('#msgContactsList');
+  if(!wrap || !userKey) return;
+  const contacts = [];
+  Object.entries(COLLABS).forEach(([k, c]) => {
+    if(k === 'todos' || k === userKey) return;
+    contacts.push({ key: k, name: c.name, photo: c.photo, cssVar: c.cssVar });
+  });
+  if(userKey !== 'admin') contacts.push({ key: 'admin', name: ADMIN_USER.name, photo: ADMIN_USER.photo, cssVar: null });
+
+  // calcular ultima msg e unread por contato
+  const msgs = state.messages || [];
+  contacts.forEach(c => {
+    const thread = msgs.filter(m => (m.from === userKey && m.to === c.key) || (m.from === c.key && m.to === userKey));
+    c.lastMsg = thread.length ? thread[thread.length - 1] : null;
+    c.unread = thread.filter(m => m.to === userKey && m.read === false).length;
+  });
+  // ordenar: nao lidos primeiro, depois pelos com mais recentes
+  contacts.sort((a, b) => {
+    if(a.unread !== b.unread) return b.unread - a.unread;
+    const aTime = a.lastMsg ? new Date(a.lastMsg.when).getTime() : 0;
+    const bTime = b.lastMsg ? new Date(b.lastMsg.when).getTime() : 0;
+    return bTime - aTime;
+  });
+
+  wrap.innerHTML = contacts.map(c => {
+    const isActive = activeChatContact === c.key;
+    const photo = c.photo ? `<img src="${c.photo}" alt="${c.name}">` : `<div class="msg-contact-avatar-fallback">${c.name.charAt(0)}</div>`;
+    const preview = c.lastMsg ? escapeHtml(c.lastMsg.text.slice(0, 40)) : 'Nenhuma mensagem ainda';
+    const time = c.lastMsg ? formatMsgTime(c.lastMsg.when) : '';
+    const badge = c.unread > 0 ? `<span class="msg-unread-badge">${c.unread}</span>` : '';
+    return `<div class="msg-contact${isActive?' active':''}" data-msg-contact="${c.key}">
+      ${photo}
+      <div class="msg-contact-info">
+        <div class="msg-contact-name"><span>${c.name}</span><span class="msg-contact-time">${time}</span></div>
+        <div class="msg-contact-preview">${preview}</div>
+      </div>
+      ${badge}
     </div>`;
   }).join('');
-  wrap.scrollTop = wrap.scrollHeight;
+
+  wrap.querySelectorAll('.msg-contact').forEach(el => {
+    el.addEventListener('click', () => {
+      activeChatContact = el.dataset.msgContact;
+      // marcar como lidas
+      (state.messages||[]).forEach(m => {
+        if(m.from === activeChatContact && m.to === userKey) m.read = true;
+      });
+      save('messages');
+      renderMsgContacts();
+      renderMsgChat();
+      document.querySelector('.msg-layout').classList.add('chat-open');
+      renderMessagesBadge();
+    });
+  });
 }
+
+function formatMsgTime(iso){
+  const dt = new Date(iso);
+  const today = new Date();
+  const isToday = dt.toDateString() === today.toDateString();
+  if(isToday) return `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+  if(dt.toDateString() === yesterday.toDateString()) return 'ontem';
+  return `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}`;
+}
+
+function renderMsgChat(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  const headerWrap = $('#msgChatHeaderInfo');
+  const thread = $('#msgThread');
+  const inputWrap = $('#msgInputWrap');
+  const empty = $('#msgEmpty');
+  if(!activeChatContact){
+    headerWrap.innerHTML = '';
+    thread.style.display = 'none';
+    inputWrap.style.display = 'none';
+    empty.style.display = 'flex';
+    return;
+  }
+  empty.style.display = 'none';
+  thread.style.display = 'flex';
+  inputWrap.style.display = 'flex';
+
+  const isAdmin = activeChatContact === 'admin';
+  const c = isAdmin ? { name: ADMIN_USER.name, photo: ADMIN_USER.photo } : COLLABS[activeChatContact];
+  const photo = c.photo ? `<img src="${c.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1.5px solid var(--ink)">` : `<div class="msg-contact-avatar-fallback" style="width:36px;height:36px">${c.name.charAt(0)}</div>`;
+  headerWrap.innerHTML = `${photo}<strong style="font-size:14px">${c.name}</strong>`;
+
+  const msgs = (state.messages || []).filter(m =>
+    (m.from === userKey && m.to === activeChatContact) || (m.from === activeChatContact && m.to === userKey)
+  );
+  if(!msgs.length){
+    thread.innerHTML = '<div style="text-align:center;color:var(--ink-faint);font-style:italic;font-family:Fraunces,serif;font-size:13px;padding:20px">Comece a conversa!</div>';
+  } else {
+    thread.innerHTML = msgs.map(m => {
+      const isMe = m.from === userKey;
+      return `<div class="msg-bubble ${isMe?'me':'other'}">${escapeHtml(m.text)}<span class="when">${formatMsgTime(m.when)}</span></div>`;
+    }).join('');
+    setTimeout(() => { thread.scrollTop = thread.scrollHeight; }, 0);
+  }
+}
+
 function sendMessage(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
-  if(!userKey) return;
-  const to = $('#msgTo').value;
+  if(!userKey || !activeChatContact) return;
   const text = $('#msgInput').value.trim();
   if(!text) return;
   if(!state.messages) state.messages = [];
-  state.messages.push({ id: uid(), from: userKey, to, text, when: new Date().toISOString(), read: false });
+  state.messages.push({ id: uid(), from: userKey, to: activeChatContact, text, when: new Date().toISOString(), read: false });
   save('messages');
   $('#msgInput').value = '';
-  renderMsgThread();
+  renderMsgChat();
+  renderMsgContacts();
 }
 function renderMessagesBadge(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
@@ -4763,6 +4883,12 @@ function bindEvents(){
   $('#kudosSendBtn').addEventListener('click', sendKudos);
   $('#msgSendBtn').addEventListener('click', sendMessage);
   $('#msgInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); sendMessage(); } });
+  $('#msgBackBtn').addEventListener('click', () => {
+    activeChatContact = null;
+    document.querySelector('.msg-layout').classList.remove('chat-open');
+    renderMsgChat();
+    renderMsgContacts();
+  });
   $('#meetingSubmitBtn').addEventListener('click', submitMeetingRequest);
   $('#meetingCancelBtn').addEventListener('click', () => $('#meetingRequestModal').classList.remove('open'));
   $('#saveNoteBtn').addEventListener('click', savePersonalNote);
