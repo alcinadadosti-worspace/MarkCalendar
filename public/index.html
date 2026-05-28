@@ -2301,11 +2301,16 @@ function renderKudos(){
       streakHTML += `<div>🎂 <strong>${COLLABS[col].name}</strong> faz aniversário dia ${day}.</div>`;
     });
   }
-  // achievement simples: collab com mais eventos
+  // achievement: collab com mais eventos (mostra empates)
   const counts = eventsByCollabInMonth(state.current.getFullYear(), state.current.getMonth());
-  const winner = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
-  if(winner && winner[1] > 0){
-    streakHTML += `<div style="margin-top:6px">🏆 <strong>${COLLABS[winner[0]].name}</strong> é quem tem mais eventos no mês (${winner[1]}).</div>`;
+  const max = Math.max(...Object.values(counts));
+  if(max > 0){
+    const winners = Object.entries(counts).filter(([,n]) => n === max).map(([k]) => COLLABS[k].name);
+    const namesStr = winners.length === 1 ? `<strong>${winners[0]}</strong>` :
+      winners.length === 2 ? `<strong>${winners[0]}</strong> e <strong>${winners[1]}</strong>` :
+      winners.slice(0,-1).map(n=>`<strong>${n}</strong>`).join(', ') + ` e <strong>${winners[winners.length-1]}</strong>`;
+    const verb = winners.length === 1 ? 'é quem tem' : 'são quem têm';
+    streakHTML += `<div style="margin-top:6px">🏆 ${namesStr} ${verb} mais eventos no mês (${max}).</div>`;
   }
   if(!streakHTML){
     streakHTML = '<em>Conquistas aparecem aqui conforme o mês avança.</em>';
