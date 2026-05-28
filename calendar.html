@@ -1149,17 +1149,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Atribuir para</label>
-        <div class="collab-picker" id="collabPicker">
-          <button class="pick selected" data-collab="joao"><span class="dot" style="background:var(--c-joao)"></span>João</button>
-          <button class="pick" data-collab="thayane"><span class="dot" style="background:var(--c-thayane)"></span>Thayane</button>
-          <button class="pick" data-collab="lianda"><span class="dot" style="background:var(--c-lianda)"></span>Lianda</button>
-          <button class="pick" data-collab="ravy"><span class="dot" style="background:var(--c-ravy)"></span>Ravy</button>
-          <button class="pick" data-collab="todos" style="grid-column:1/-1"><span class="dot" style="background:var(--c-todos)"></span>★ Todos (equipe inteira)</button>
-        </div>
-      </div>
-
       <div id="taskAssignWrap" class="form-group">
         <label>Equipe & Tarefas</label>
         <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Selecione um colaborador, escolha ou digite a função e clique em adicionar.</p>
@@ -1169,6 +1158,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
             <option value="thayane">Thayane</option>
             <option value="lianda">Lianda</option>
             <option value="ravy">Ravy</option>
+            <option value="todos">★ Todos (equipe inteira)</option>
           </select>
         </div>
         <div class="task-quick-picker" id="taskQuickPicker">
@@ -2736,7 +2726,6 @@ function renderFestive(){
 // ============ MODAL DO DIA ============
 let activeDateKey = null;
 let editingEvent = null;
-let formSelectedCollab = 'joao';
 let formTasks = [];
 let formSelectedType = 'reuniao';
 
@@ -2799,7 +2788,6 @@ function resetForm(){
   $('#customRecurWrap').style.display = 'none';
   $('#eventPinned').checked = false;
   $('#eventPrivate').checked = false;
-  formSelectedCollab = 'joao';
   formSelectedType = 'reuniao';
   formTasks = [];
   updatePickerSelections();
@@ -2819,7 +2807,6 @@ function fillFormFor(ev){
   $('#eventRecurring').value = ev.recurring || 'none';
   $('#eventPinned').checked = !!ev.pinned;
   $('#eventPrivate').checked = !!ev.private;
-  formSelectedCollab = ev.collab;
   formSelectedType = ev.type || 'reuniao';
   formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? {id:uid(), collab:ev.collab, text:t, done:false} : {...t, id: t.id || uid()});
   updatePickerSelections();
@@ -2829,7 +2816,6 @@ function fillFormFor(ev){
 }
 
 function updatePickerSelections(){
-  $$('.pick[data-collab]').forEach(p => p.classList.toggle('selected', p.dataset.collab === formSelectedCollab));
   $$('.pick[data-type]').forEach(p => p.classList.toggle('selected', p.dataset.type === formSelectedType));
 }
 
@@ -3183,8 +3169,16 @@ function saveEvent(){
 
   // checar carga
   const wkCounts = eventsByCollabInWeek(getWeekStart(new Date(activeDateKey)));
-  if(wkCounts[formSelectedCollab] >= 5 && !editingEvent){
-    if(!confirm(`${COLLABS[formSelectedCollab].name} já tem ${wkCounts[formSelectedCollab]} eventos nesta semana. Deseja continuar?`)){
+  if(!formTasks.length){
+    toast('Adicione pelo menos uma tarefa para alguém da equipe');
+    return;
+  }
+  const uniqueCollabs = [...new Set(formTasks.map(t => t.collab))];
+  const derivedCollab = uniqueCollabs.length === 1 ? uniqueCollabs[0] : 'todos';
+
+  // checar carga apenas se for 1 pessoa
+  if(uniqueCollabs.length === 1 && wkCounts[derivedCollab] >= 5 && !editingEvent){
+    if(!confirm(`${COLLABS[derivedCollab].name} já tem ${wkCounts[derivedCollab]} eventos nesta semana. Deseja continuar?`)){
       return;
     }
   }
@@ -3194,7 +3188,7 @@ function saveEvent(){
     const ev = editingEvent;
     const oldTitle = ev.title;
     ev.title = title;
-    ev.collab = formSelectedCollab;
+    ev.collab = derivedCollab;
     ev.type = formSelectedType;
     ev.startTime = start;
     ev.endTime = end;
@@ -3212,7 +3206,7 @@ function saveEvent(){
     const newEv = {
       id: uid(),
       title,
-      collab: formSelectedCollab,
+      collab: derivedCollab,
       type: formSelectedType,
       startTime: start,
       endTime: end,
@@ -3264,11 +3258,11 @@ function saveEvent(){
       }
     }
 
-    const taskNames = [...new Set(formTasks.map(t=>t.collab))].map(c=>COLLABS[c]?COLLABS[c].name:c);
-    const logTarget = taskNames.length > 1 ? taskNames.join(', ') : COLLABS[formSelectedCollab].name;
+    const taskNames = uniqueCollabs.map(c=>COLLABS[c]?COLLABS[c].name:c);
+    const logTarget = taskNames.length > 1 ? taskNames.join(', ') : taskNames[0];
     logHistory(`Criou "${title}" para ${logTarget}`);
     save('events');
-    toast(`✓ "${title}" criado para ${COLLABS[formSelectedCollab].name}${rec && rec !== 'none' ? ' + recorrências' : ''}`);
+    toast(`✓ "${title}" criado para ${logTarget}${rec && rec !== 'none' ? ' + recorrências' : ''}`);
   }
 
   resetForm();
@@ -4024,11 +4018,6 @@ function bindEvents(){
   });
 
   // pickers
-  $('#collabPicker').addEventListener('click', e => {
-    const btn = e.target.closest('.pick'); if(!btn) return;
-    formSelectedCollab = btn.dataset.collab;
-    updatePickerSelections();
-  });
   $('#typePicker').addEventListener('click', e => {
     const btn = e.target.closest('.pick'); if(!btn) return;
     formSelectedType = btn.dataset.type;
