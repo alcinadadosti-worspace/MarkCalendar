@@ -1722,6 +1722,15 @@ function startRealtimeSync(){
 // ============ HELPERS ============
 const $ = s => document.querySelector(s);
 function evVisibleTo(ev, who){ return ev.collab === who || ev.collab === 'todos' || (ev.tasks && ev.tasks.some(t => t.collab === who)); }
+function evGradient(ev){
+  if(!ev.tasks || ev.tasks.length === 0) return null;
+  const unique = [...new Set(ev.tasks.map(t => t.collab))].filter(c => COLLABS[c]);
+  if(unique.length < 2) return null;
+  const colors = unique.map(c => getComputedStyle(document.documentElement).getPropertyValue(COLLABS[c].cssVar).trim() || '#ccc');
+  const step = 100 / colors.length;
+  const stops = colors.map((col, i) => `${col} ${i*step}%, ${col} ${(i+1)*step}%`).join(', ');
+  return `linear-gradient(135deg, ${stops})`;
+}
 const $$ = s => Array.from(document.querySelectorAll(s));
 const pad = n => String(n).padStart(2,'0');
 const keyOf = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
@@ -2421,6 +2430,8 @@ function renderMonth(){
       const isTeamReadonly = state.viewMode === 'team' && state.viewerAs && !evVisibleTo(ev, state.viewerAs);
       const eEl = document.createElement('div');
       eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '') + (ev.completed ? ' completed' : '') + (isTeamReadonly ? ' team-readonly' : '');
+      const grad = evGradient(ev);
+      if(grad){ eEl.style.background = grad; eEl.style.color = 'var(--ink)'; }
       let timeBit = '';
       if(ev.startTime) timeBit = `<span class="time">${ev.startTime}</span>`;
       let rsvpBit = '';
@@ -2553,6 +2564,8 @@ function renderWeek(){
       const isDimmed = state.filterCollab && ev.collab !== state.filterCollab && !state.showOnlyMine;
       const we = document.createElement('div');
       we.className = 'week-event ' + c.color + (isDimmed ? ' dimmed' : '');
+      const weGrad = evGradient(ev);
+      if(weGrad){ we.style.background = weGrad; we.style.color = 'var(--ink)'; }
       we.style.top = top + 'px';
       we.style.height = height + 'px';
       we.innerHTML = `
@@ -3105,8 +3118,7 @@ function saveEvent(){
     const ev = editingEvent;
     const oldTitle = ev.title;
     ev.title = title;
-    const editUnique = new Set(formTasks.map(t => t.collab));
-    ev.collab = editUnique.size > 1 ? 'todos' : formSelectedCollab;
+    ev.collab = formSelectedCollab;
     ev.type = formSelectedType;
     ev.startTime = start;
     ev.endTime = end;
@@ -3121,14 +3133,10 @@ function saveEvent(){
     save('events');
     toast('Evento atualizado');
   } else {
-    // se tem tarefas para 2+ colaboradores, evento usa cor "multi" (roxa)
-    // mas continua visivel APENAS para quem tem tarefa (controle por evVisibleTo)
-    const uniqueTaskCollabs = new Set(formTasks.map(t => t.collab));
-    const eventColor = uniqueTaskCollabs.size > 1 ? 'todos' : formSelectedCollab;
     const newEv = {
       id: uid(),
       title,
-      collab: eventColor,
+      collab: formSelectedCollab,
       type: formSelectedType,
       startTime: start,
       endTime: end,
