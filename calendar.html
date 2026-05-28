@@ -1899,7 +1899,7 @@ const $ = s => document.querySelector(s);
 function evVisibleTo(ev, who){ return ev.collab === who || ev.collab === 'todos' || (ev.tasks && ev.tasks.some(t => t.collab === who)); }
 function evFullyDone(ev){
   if(ev.tasks && ev.tasks.length){
-    return ev.tasks.every(t => typeof t === 'object' && t.done);
+    return ev.tasks.every(t => t && typeof t === 'object' && t.done === true);
   }
   return !!ev.completed;
 }
@@ -3425,9 +3425,10 @@ function renderExistingEvents(){
       render();
     });
   });
+  const dateAtRender = activeDateKey;
   container.querySelectorAll('[data-thanks-cid]').forEach(b => {
     b.addEventListener('click', () => {
-      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.thanksEv);
+      const ev = (state.events[dateAtRender]||[]).find(x=>x.id===b.dataset.thanksEv);
       if(!ev) return;
       const co = (ev.comments||[]).find(c => c.id === b.dataset.thanksCid);
       if(!co) return;
@@ -3529,16 +3530,20 @@ function saveEvent(){
     return;
   }
 
-  // checar carga
-  const wkCounts = eventsByCollabInWeek(getWeekStart(new Date(activeDateKey)));
   if(!formTasks.length){
     toast('Adicione pelo menos uma tarefa para alguém da equipe');
     return;
   }
+  // sanitizar tarefas para garantir formato consistente
+  formTasks = formTasks.filter(t => t && typeof t === 'object' && t.collab && t.text);
+  if(!formTasks.length){
+    toast('Tarefas inválidas');
+    return;
+  }
   const uniqueCollabs = [...new Set(formTasks.map(t => t.collab))];
   const derivedCollab = uniqueCollabs.length === 1 ? uniqueCollabs[0] : 'todos';
+  const wkCounts = eventsByCollabInWeek(getWeekStart(new Date(activeDateKey)));
 
-  // checar carga apenas se for 1 pessoa
   if(uniqueCollabs.length === 1 && wkCounts[derivedCollab] >= 5 && !editingEvent){
     if(!confirm(`${COLLABS[derivedCollab].name} já tem ${wkCounts[derivedCollab]} eventos nesta semana. Deseja continuar?`)){
       return;
@@ -4170,7 +4175,7 @@ function resolveRequest(reqId, status){
         id: uid(), title:'Reunião solicitada por '+COLLABS[req.who].name,
         collab:'todos', type:'reuniao', startTime:req.suggestedTime, endTime:addHour(req.suggestedTime),
         desc:req.note||'', link:'', location:'', recurring:'none', pinned:false, private:false,
-        createdAt:new Date().toISOString(), rsvp:{}, comments:[]
+        createdAt:new Date().toISOString(), rsvp:{}, comments:[], tasks:[]
       };
       if(!state.events[k]) state.events[k] = [];
       state.events[k].push(newEv);
@@ -4297,7 +4302,7 @@ function respondMeetingRequest(reqId, response){
       id: uid(), title:'Reunião: '+participants,
       collab:'todos', type:'reuniao', startTime:req.suggestedTime, endTime:addHour(req.suggestedTime),
       desc:(req.note||''), link:'', location:'', recurring:'none', pinned:false, private:false,
-      createdAt:new Date().toISOString(), rsvp:rsvpDone, comments:[]
+      createdAt:new Date().toISOString(), rsvp:rsvpDone, comments:[], tasks:[], completed:false
     };
     if(!state.events[k]) state.events[k] = [];
     state.events[k].push(newEv);
@@ -4349,6 +4354,7 @@ function openMyDay(){
 function renderPriorities(){
   const today = todayKey;
   const userKey = state.viewerAs;
+  if(!userKey) return;
   const list = ((state.priorities[today] || {})[userKey] || []);
   const wrap = $('#prioritiesList');
   if(!list.length){
@@ -4399,6 +4405,7 @@ function renderPriorities(){
 function addPriority(){
   const today = todayKey;
   const userKey = state.viewerAs;
+  if(!userKey){ toast('Faça login'); return; }
   const text = $('#newPriorityInput').value.trim();
   if(!text) return;
   if(!state.priorities[today]) state.priorities[today] = {};
@@ -4412,6 +4419,7 @@ function addPriority(){
 function renderBlocks(){
   const today = todayKey;
   const userKey = state.viewerAs;
+  if(!userKey) return;
   const list = ((state.blocks[today] || {})[userKey] || []);
   const wrap = $('#blocksList');
   if(!list.length){
@@ -4436,6 +4444,7 @@ function renderBlocks(){
 function addBlock(){
   const today = todayKey;
   const userKey = state.viewerAs;
+  if(!userKey){ toast('Faça login'); return; }
   const start = $('#blockStart').value;
   const end = $('#blockEnd').value;
   if(!start || !end || end <= start){ toast('Horários inválidos'); return; }
@@ -4518,9 +4527,11 @@ function renderDiaryAllHistory(){
   });
   wrap.querySelectorAll('[data-diary-rm]').forEach(b => {
     b.addEventListener('click', () => {
+      const currentUser = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+      if(!currentUser){ toast('Sessão inválida'); return; }
       if(!confirm('Excluir esta entrada do diário?')) return;
       const date = b.dataset.diaryRm;
-      if(state.diary[date]){ delete state.diary[date][userKey]; }
+      if(state.diary[date]){ delete state.diary[date][currentUser]; }
       if(state.diary[date] && Object.keys(state.diary[date]).length === 0) delete state.diary[date];
       save('diary');
       renderDiaryAllHistory();
@@ -4547,7 +4558,9 @@ function openKudos(){
 }
 function renderKudosList(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
-  const list = (state.kudos || []).filter(k => k.to === userKey || k.from === userKey).slice(-10).reverse();
+  const list = (state.kudos || [])
+    .filter(k => (k.to === userKey || k.from === userKey) && (k.from === 'admin' || COLLABS[k.from]) && (k.to === 'admin' || COLLABS[k.to]))
+    .slice(-10).reverse();
   const wrap = $('#kudosList');
   if(!list.length){
     wrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Sem elogios ainda</span>';
@@ -4677,8 +4690,8 @@ function renderMsgChat(){
   inputWrap.style.display = 'flex';
 
   const isAdmin = activeChatContact === 'admin';
-  const c = isAdmin ? { name: ADMIN_USER.name, photo: ADMIN_USER.photo } : COLLABS[activeChatContact];
-  const photo = c.photo ? `<img src="${c.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1.5px solid var(--ink)">` : `<div class="msg-contact-avatar-fallback" style="width:36px;height:36px">${c.name.charAt(0)}</div>`;
+  const c = isAdmin ? { name: ADMIN_USER.name, photo: ADMIN_USER.photo } : (COLLABS[activeChatContact] || { name: 'Desconhecido', photo: '' });
+  const photo = c.photo ? `<img src="${c.photo}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1.5px solid var(--ink)">` : `<div class="msg-contact-avatar-fallback" style="width:36px;height:36px">${(c.name||'?').charAt(0)}</div>`;
   headerWrap.innerHTML = `${photo}<strong style="font-size:14px">${c.name}</strong>`;
 
   const msgs = (state.messages || []).filter(m =>
@@ -4803,6 +4816,7 @@ function bindEvents(){
     state.viewerAs = null;
     state.filterCollab = null;
     state.showOnlyMine = false;
+    activeChatContact = null;
     $('#appContent').style.display = 'none';
     openLogin();
   });
