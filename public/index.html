@@ -288,6 +288,16 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .request-card .rc-actions{display:flex;gap:6px;margin-top:8px}
 
 /* task assignment */
+.task-quick-picker{display:flex;flex-wrap:wrap;gap:5px}
+.task-quick{
+  border:1.5px solid var(--muted);background:var(--bg);color:var(--ink);
+  padding:6px 10px;border-radius:999px;font-family:'Inter',sans-serif;
+  font-size:11.5px;font-weight:500;cursor:pointer;transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.task-quick:hover{border-color:var(--ink);background:var(--bg-2)}
+.task-quick:active{transform:scale(0.96)}
+.task-quick-custom{border-style:dashed;font-style:italic}
 .task-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--muted);border-radius:6px;font-size:12px;background:var(--card);animation:fadeSlide .2s ease}
 .task-item .task-text{flex:1}
 .task-item .task-remove{border:none;background:transparent;color:var(--danger);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px}
@@ -1148,22 +1158,29 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
       <div id="taskAssignWrap" class="form-group">
         <label>Equipe & Tarefas</label>
-        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Selecione um colaborador, defina a tarefa e clique em adicionar. Repita para cada pessoa.</p>
-        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;align-items:end">
-          <div style="flex:1;min-width:100px">
-            <select id="taskCollabSelect" style="width:100%;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
-              <option value="joao">João</option>
-              <option value="thayane">Thayane</option>
-              <option value="lianda">Lianda</option>
-              <option value="ravy">Ravy</option>
-            </select>
-          </div>
-          <div style="flex:2;min-width:140px">
-            <input type="text" id="taskAssignInput" placeholder="Ex: gravar, editar, roteiro..." maxlength="60" style="width:100%;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
-          </div>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Selecione um colaborador, escolha ou digite a função e clique em adicionar.</p>
+        <div style="margin-bottom:8px">
+          <select id="taskCollabSelect" style="width:100%;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
+            <option value="joao">João</option>
+            <option value="thayane">Thayane</option>
+            <option value="lianda">Lianda</option>
+            <option value="ravy">Ravy</option>
+          </select>
+        </div>
+        <div class="task-quick-picker" id="taskQuickPicker">
+          <button type="button" class="task-quick" data-quick="Criação">🎬 Criação</button>
+          <button type="button" class="task-quick" data-quick="Edição">✂️ Edição</button>
+          <button type="button" class="task-quick" data-quick="Captação">📸 Captação</button>
+          <button type="button" class="task-quick" data-quick="Postagem">📤 Postagem</button>
+          <button type="button" class="task-quick" data-quick="Organização">📋 Organização</button>
+          <button type="button" class="task-quick" data-quick="Coordenador do evento">⭐ Coordenador</button>
+          <button type="button" class="task-quick task-quick-custom" data-quick="__custom">✏️ Outro...</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input type="text" id="taskAssignInput" placeholder="Ou digite uma função personalizada..." maxlength="60" style="flex:1;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
           <button class="btn small" id="taskAssignAddBtn" type="button">+ Adicionar</button>
         </div>
-        <div id="taskAssignList" style="display:flex;flex-direction:column;gap:4px"></div>
+        <div id="taskAssignList" style="display:flex;flex-direction:column;gap:4px;margin-top:8px"></div>
       </div>
 
       <div class="form-group">
@@ -3997,6 +4014,16 @@ function bindEvents(){
   $('#saveNoteBtn').addEventListener('click', savePersonalNote);
   $('#taskAssignAddBtn').addEventListener('click', addTaskAssign);
   $('#taskAssignInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addTaskAssign(); } });
+  $('#taskQuickPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.task-quick'); if(!btn) return;
+    const collab = $('#taskCollabSelect').value;
+    if(btn.dataset.quick === '__custom'){
+      $('#taskAssignInput').focus();
+      return;
+    }
+    formTasks.push({ collab, text: btn.dataset.quick, done: false });
+    renderTaskList();
+  });
   $('#deleteNoteBtn').addEventListener('click', deletePersonalNote);
   $('#noteIconPicker').addEventListener('click', e => {
     const btn = e.target.closest('.note-ico-btn'); if(!btn) return;
