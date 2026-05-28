@@ -310,6 +310,23 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .task-check.locked input{cursor:not-allowed}
 .task-check.locked .task-label{color:var(--ink-soft)}
 
+/* event flags */
+.ev-flags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.ev-flag-badge{font-size:11px;font-weight:500;padding:3px 8px;border-radius:999px;border:1px solid var(--ink);display:inline-flex;align-items:center;gap:4px}
+.ev-flag-badge.prep{background:#E3F2FD;color:#0277BD;border-color:#0277BD}
+.ev-flag-badge.help{background:#FFE0B2;color:#E65100;border-color:#E65100;animation:badgePulse 2s ease infinite}
+.ev-flag-badge.offer{background:#C8E6C9;color:#2E7D32;border-color:#2E7D32}
+
+/* mention & thanks */
+.ev-mention{font-size:11px;display:inline-block}
+.comment-thanks{border:1px solid var(--muted);background:var(--bg);color:var(--ink-soft);font-size:10px;padding:2px 6px;border-radius:999px;cursor:pointer;transition:all .15s;flex-shrink:0}
+.comment-thanks:hover{border-color:var(--ink);color:var(--ink)}
+.comment-thanks.active{background:#FFF59D;color:#827717;border-color:#827717;font-weight:600}
+[data-theme="dark"] .comment-thanks.active{background:#5D5410;color:#FFF59D}
+[data-theme="dark"] .ev-flag-badge.prep{background:#01579B;color:#B3E5FC}
+[data-theme="dark"] .ev-flag-badge.help{background:#5D2C00;color:#FFCC80}
+[data-theme="dark"] .ev-flag-badge.offer{background:#1B5E20;color:#A5D6A7}
+
 /* upcoming */
 .upcoming{display:flex;flex-direction:column;gap:8px}
 .upcoming-card{
@@ -1034,7 +1051,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div id="searchResults" style="margin-top:6px;max-height:220px;overflow-y:auto"></div>
       <div id="viewerStatusArea"></div>
       <div id="teamToggleArea"></div>
-      <button class="btn small" id="requestMeetingBtn" style="display:none;margin-top:8px;width:100%">📅 Solicitar reunião</button>
+      <button class="btn small" id="myDayBtn" style="display:none;margin-top:8px;width:100%">☀️ Meu dia</button>
+      <button class="btn small" id="messagesBtn" style="display:none;margin-top:6px;width:100%;position:relative">💬 Mensagens <span id="messagesBadge" style="display:none"></span></button>
+      <button class="btn small" id="kudosBtn" style="display:none;margin-top:6px;width:100%">⭐ Dar elogio</button>
+      <button class="btn small" id="requestMeetingBtn" style="display:none;margin-top:6px;width:100%">📅 Solicitar reunião</button>
       <div id="meetingInvites"></div>
     </div>
 
@@ -1292,6 +1312,83 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <div id="requestsBody"></div>
     <div class="modal-actions">
       <button class="btn primary" onclick="document.getElementById('requestsModal').classList.remove('open')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MY DAY ============ -->
+<div class="modal-backdrop" id="myDayModal">
+  <div class="modal wide">
+    <h3>☀️ Meu dia</h3>
+    <p class="sub" id="myDayDate"></p>
+    <div id="myDayResume" style="background:var(--bg-2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px"></div>
+
+    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:14px 0 8px">🎯 Prioridades</h4>
+    <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Arraste para reordenar</p>
+    <div id="prioritiesList" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="newPriorityInput" placeholder="Nova prioridade..." maxlength="80" style="flex:1;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
+      <button class="btn small" id="addPriorityBtn">+ Adicionar</button>
+    </div>
+
+    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:18px 0 8px">⛔ Bloquear horário</h4>
+    <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Para a equipe saber quando você não está disponível</p>
+    <div id="blocksList" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr auto;gap:6px;align-items:end">
+      <div class="form-group" style="margin:0"><label style="font-size:11px">De</label><input type="time" id="blockStart" value="12:00" style="padding:8px"></div>
+      <div class="form-group" style="margin:0"><label style="font-size:11px">Até</label><input type="time" id="blockEnd" value="13:00" style="padding:8px"></div>
+      <button class="btn small" id="addBlockBtn">+ Bloquear</button>
+    </div>
+
+    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:18px 0 8px">📔 Diário</h4>
+    <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Reflexões pessoais sobre o seu dia (só você vê)</p>
+    <textarea id="diaryText" placeholder="Como foi seu dia? O que aprendeu?" maxlength="2000" style="width:100%;min-height:80px;border:1.5px solid var(--ink);border-radius:6px;padding:10px;font-family:Fraunces,serif;font-style:italic;font-size:13px;background:var(--bg);color:var(--ink);resize:vertical;outline:none"></textarea>
+    <button class="btn small primary" id="saveDiaryBtn" style="margin-top:6px">Salvar diário</button>
+
+    <div class="modal-actions">
+      <button class="btn primary" onclick="document.getElementById('myDayModal').classList.remove('open')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MESSAGES ============ -->
+<div class="modal-backdrop" id="messagesModal">
+  <div class="modal">
+    <h3>💬 Mensagens diretas</h3>
+    <p class="sub">Conversa privada com colegas</p>
+    <div class="form-group">
+      <label>Para:</label>
+      <select id="msgTo" style="width:100%;padding:10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)"></select>
+    </div>
+    <div id="msgThread" style="background:var(--bg-2);border-radius:8px;padding:12px;max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;min-height:140px"></div>
+    <div style="display:flex;gap:6px">
+      <input type="text" id="msgInput" placeholder="Escreva uma mensagem..." maxlength="300" style="flex:1;padding:10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink);outline:none">
+      <button class="btn small primary" id="msgSendBtn">Enviar</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('messagesModal').classList.remove('open')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ KUDOS ============ -->
+<div class="modal-backdrop" id="kudosModal">
+  <div class="modal">
+    <h3>⭐ Dar elogio</h3>
+    <p class="sub">Reconheça o esforço de um colega</p>
+    <div class="form-group">
+      <label>Para:</label>
+      <select id="kudosTo" style="width:100%;padding:10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)"></select>
+    </div>
+    <div class="form-group">
+      <label>Mensagem:</label>
+      <textarea id="kudosText" placeholder="Mandou bem porque..." maxlength="300" style="width:100%;min-height:80px"></textarea>
+    </div>
+    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:14px;margin:14px 0 8px">📋 Elogios recentes</h4>
+    <div id="kudosList" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="document.getElementById('kudosModal').classList.remove('open')">Fechar</button>
+      <button class="btn primary" id="kudosSendBtn">Enviar elogio</button>
     </div>
   </div>
 </div>
@@ -1642,14 +1739,20 @@ let state = {
   customColors: {},       // { joao: '#XXXXXX' }
   requests: [],           // solicitações (troca de dia, reunião)
   notes: {},              // { 'YYYY-MM-DD': { joao: { text:'...', icon:'📝' } } }
-  viewMode: 'mine'        // 'mine' | 'team' (não persiste)
+  viewMode: 'mine',       // 'mine' | 'team' (não persiste)
+  priorities: {},         // { 'YYYY-MM-DD': { joao: [...itens] } }
+  diary: {},              // { 'YYYY-MM-DD': { joao: 'texto' } }
+  blocks: {},             // { 'YYYY-MM-DD': { joao: [{start,end,reason}] } }
+  reminders: {},          // { 'eventId': { collab: minutos } }
+  kudos: [],              // { id, from, to, text, when }
+  messages: []            // { id, from, to, text, when, read }
 };
 
 state.current.setDate(1);
 
 // ============ STORAGE ============
 async function loadAll(){
-  const keys = ['events','statuses','history','customColors','birthdays','theme','festive','requests','notes'];
+  const keys = ['events','statuses','history','customColors','birthdays','theme','festive','requests','notes','priorities','diary','blocks','reminders','kudos','messages'];
   for(const k of keys){
     try{
       const r = await window.storage.get(k);
@@ -2176,16 +2279,27 @@ function renderSidebar(){
     } else { ttArea.innerHTML = ''; }
   }
 
-  // meeting request button + invites
+  // meeting request button + invites + my day + msgs + kudos
   const mrBtn = $('#requestMeetingBtn');
   if(mrBtn) mrBtn.style.display = state.viewerAs ? '' : 'none';
+  const myDayBtn = $('#myDayBtn');
+  if(myDayBtn) myDayBtn.style.display = state.viewerAs ? '' : 'none';
+  const msgsBtn = $('#messagesBtn');
+  if(msgsBtn) msgsBtn.style.display = state.viewerAs ? '' : 'none';
+  const kBtn = $('#kudosBtn');
+  if(kBtn) kBtn.style.display = state.viewerAs ? '' : 'none';
+  renderMessagesBadge();
   const invWrap = $('#meetingInvites');
   if(invWrap && state.viewerAs){
     const myInvites = (state.requests||[]).filter(r =>
       r.type === 'meeting' && r.status === 'pending' && r.responses && r.responses[state.viewerAs] === 'pending'
     );
+    const mySubs = (state.requests||[]).filter(r =>
+      r.type === 'substitute' && r.status === 'pending' && r.target === state.viewerAs
+    );
+    let html = '';
     if(myInvites.length){
-      invWrap.innerHTML = '<h2 class="panel-title" style="font-size:14px;margin-top:12px">📬 Convites</h2>' +
+      html += '<h2 class="panel-title" style="font-size:14px;margin-top:12px">📬 Convites de reunião</h2>' +
         myInvites.map(r => {
           const from = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
           const photo = COLLABS[r.who] ? COLLABS[r.who].photo : '';
@@ -2199,13 +2313,38 @@ function renderSidebar(){
             </div>
           </div>`;
         }).join('');
-      invWrap.querySelectorAll('[data-invite-yes]').forEach(b => {
-        b.addEventListener('click', () => respondMeetingRequest(b.dataset.inviteYes, 'yes'));
-      });
-      invWrap.querySelectorAll('[data-invite-no]').forEach(b => {
-        b.addEventListener('click', () => respondMeetingRequest(b.dataset.inviteNo, 'no'));
-      });
-    } else { invWrap.innerHTML = ''; }
+    }
+    if(mySubs.length){
+      html += '<h2 class="panel-title" style="font-size:14px;margin-top:12px">🔄 Pedidos de substituição</h2>' +
+        mySubs.map(r => {
+          const from = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
+          const photo = COLLABS[r.who] ? COLLABS[r.who].photo : '';
+          const photoHtml = photo ? `<img src="${photo}" style="width:20px;height:20px;border-radius:50%;object-fit:cover">` : '';
+          const ev = Object.values(state.events).flat().find(e=>e.id===r.eventId);
+          const evTitle = ev ? escapeHtml(ev.title) : '(evento removido)';
+          return `<div class="request-card pending" style="font-size:12px">
+            <div style="display:flex;align-items:center;gap:6px">${photoHtml}<strong>${from}</strong> pediu para substituir</div>
+            <div style="color:var(--ink-soft);font-size:11px;margin:4px 0">${evTitle} em ${r.dateKey}</div>
+            <div style="display:flex;gap:6px">
+              <button class="btn small" data-sub-yes="${r.id}">✓ Aceitar</button>
+              <button class="btn small danger" data-sub-no="${r.id}">✗ Recusar</button>
+            </div>
+          </div>`;
+        }).join('');
+    }
+    invWrap.innerHTML = html;
+    invWrap.querySelectorAll('[data-invite-yes]').forEach(b => {
+      b.addEventListener('click', () => respondMeetingRequest(b.dataset.inviteYes, 'yes'));
+    });
+    invWrap.querySelectorAll('[data-invite-no]').forEach(b => {
+      b.addEventListener('click', () => respondMeetingRequest(b.dataset.inviteNo, 'no'));
+    });
+    invWrap.querySelectorAll('[data-sub-yes]').forEach(b => {
+      b.addEventListener('click', () => respondSubstituteRequest(b.dataset.subYes, 'yes'));
+    });
+    invWrap.querySelectorAll('[data-sub-no]').forEach(b => {
+      b.addEventListener('click', () => respondSubstituteRequest(b.dataset.subNo, 'no'));
+    });
   } else if(invWrap){ invWrap.innerHTML = ''; }
 
   // colaboradores
@@ -2867,6 +3006,22 @@ function renderExistingEvents(){
     if(ev.link) linkLine = `<a class="ee-link" href="${escapeHtml(ev.link)}" target="_blank" rel="noopener">${escapeHtml(ev.link)}</a>`;
     let locLine = ev.location ? `<div class="ee-meta">📍 ${escapeHtml(ev.location)}</div>` : '';
     let descLine = ev.desc ? `<div class="ee-desc">${escapeHtml(ev.desc)}</div>` : '';
+    // Status bar do evento
+    let statusBar = '';
+    const prepArr = ev.preparedBy || [];
+    if(prepArr.length){
+      const names = prepArr.map(p => COLLABS[p] ? COLLABS[p].name : p).join(', ');
+      statusBar += `<span class="ev-flag-badge prep">🎯 ${names} preparado</span>`;
+    }
+    if(ev.helpRequest){
+      const helpWho = COLLABS[ev.helpRequest.who] ? COLLABS[ev.helpRequest.who].name : ev.helpRequest.who;
+      statusBar += `<span class="ev-flag-badge help">🆘 ${helpWho} pediu ajuda</span>`;
+    }
+    if(ev.helpOffers && ev.helpOffers.length){
+      const offers = ev.helpOffers.map(o => COLLABS[o.who] ? COLLABS[o.who].name : o.who).join(', ');
+      statusBar += `<span class="ev-flag-badge offer">🤝 ${offers} ofereceu ajuda</span>`;
+    }
+    if(statusBar){ statusBar = `<div class="ev-flags">${statusBar}</div>`; }
     let tasksLine = '';
     if(ev.tasks && ev.tasks.length){
       tasksLine = '<div style="margin-top:8px;border-top:1px dashed var(--muted);padding-top:8px"><span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);display:block;margin-bottom:6px">Tarefas da equipe</span>';
@@ -2940,7 +3095,6 @@ function renderExistingEvents(){
           ? `<span class="ee-completed">✅ Concluído</span>`
           : `<button class="btn small" data-act="complete" data-id="${ev.id}">✓ Concluir</button>`;
       } else {
-        // mostrar progresso das tarefas pessoais
         const myTasks = ev.tasks.filter(t => (typeof t === 'object' ? t.collab : ev.collab) === state.viewerAs);
         if(myTasks.length){
           const doneCount = myTasks.filter(t => typeof t === 'object' && t.done).length;
@@ -2953,7 +3107,29 @@ function renderExistingEvents(){
       const swapBtn = ev.collab !== 'todos' ? `<button class="btn small" data-act="swap" data-id="${ev.id}" data-key="${activeDateKey}">↔ Solicitar troca</button>` : '';
       const isMyMeeting = ev.type === 'reuniao' && ev.collab === 'todos' && ev.rsvp && ev.rsvp[state.viewerAs] === 'yes';
       const cancelBtn = isMyMeeting ? `<button class="btn small danger" data-act="delete" data-id="${ev.id}">Cancelar reunião</button>` : '';
-      actionsHTML = `<div class="ee-actions">${completeBtn}${swapBtn}${cancelBtn}</div>`;
+
+      // Preparado
+      const preparedBy = ev.preparedBy || [];
+      const isPrepared = preparedBy.includes(state.viewerAs);
+      const prepBtn = isPrepared
+        ? `<span class="ee-completed" style="background:#E3F2FD;color:#0277BD">🎯 Preparado</span>`
+        : `<button class="btn small" data-act="prepare" data-id="${ev.id}">🎯 Marcar como preparado</button>`;
+
+      // Pedir ajuda
+      const helpAlreadyRequested = ev.helpRequest && ev.helpRequest.who === state.viewerAs;
+      const helpBtn = helpAlreadyRequested
+        ? `<button class="btn small" data-act="cancel-help" data-id="${ev.id}" style="background:#FFE0B2">🆘 Cancelar pedido</button>`
+        : `<button class="btn small" data-act="help" data-id="${ev.id}">🆘 Pedir ajuda</button>`;
+
+      // Pedir substituição (apenas se tenho tarefa aqui)
+      const hasMyTask = hasTasks && ev.tasks.some(t => (typeof t === 'object' ? t.collab : ev.collab) === state.viewerAs);
+      const subBtn = hasMyTask ? `<button class="btn small" data-act="substitute" data-id="${ev.id}">🔄 Pedir substituição</button>` : '';
+
+      // Oferecer ajuda (se NAO sou parte do evento mas posso ver)
+      const isMyEvent = ev.collab === state.viewerAs || (ev.tasks && ev.tasks.some(t => t.collab === state.viewerAs));
+      const offerBtn = !isMyEvent ? `<button class="btn small" data-act="offer-help" data-id="${ev.id}">🤝 Oferecer ajuda</button>` : '';
+
+      actionsHTML = `<div class="ee-actions">${completeBtn}${prepBtn}${helpBtn}${subBtn}${offerBtn}${swapBtn}${cancelBtn}</div>`;
     }
 
     // comments
@@ -2968,16 +3144,27 @@ function renderExistingEvents(){
           const cwho = co.who === 'admin' ? ADMIN_USER.name : (COLLABS[co.who]?.name || co.who);
           const dt = new Date(co.when);
           const when = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-          commentsHTML += `<div class="comment"><span class="who">${escapeHtml(cwho)}:</span><span style="flex:1">${escapeHtml(co.text)}</span><span class="when">${when}</span></div>`;
+          // parse @mencoes
+          const textWithTags = escapeHtml(co.text).replace(/@(\w+)/g, (m, n) => {
+            const k = n.toLowerCase();
+            const found = Object.keys(COLLABS).find(x => x === k || COLLABS[x].name.toLowerCase() === k);
+            if(found) return `<span class="ev-mention" style="background:var(${COLLABS[found].cssVar});color:var(${COLLABS[found].cssVar}-ink);padding:1px 5px;border-radius:4px;font-weight:600">@${COLLABS[found].name}</span>`;
+            return m;
+          });
+          const thanks = co.thanks || [];
+          const iThanked = state.viewerAs && thanks.includes(state.viewerAs);
+          const thanksBtn = `<button class="comment-thanks${iThanked?' active':''}" data-thanks-cid="${co.id}" data-thanks-ev="${ev.id}" title="Agradecer">👍 ${thanks.length || ''}</button>`;
+          commentsHTML += `<div class="comment"><span class="who">${escapeHtml(cwho)}:</span><span style="flex:1">${textWithTags}</span>${thanksBtn}<span class="when">${when}</span></div>`;
         });
       }
       const canComment = state.role === 'admin' || (state.role === 'viewer' && state.viewerAs);
       if(canComment){
         commentsHTML += `
           <div class="comment-input">
-            <input type="text" placeholder="Adicionar comentário..." data-comment-id="${ev.id}" maxlength="200">
+            <input type="text" placeholder="Comentário... use @nome para marcar" data-comment-id="${ev.id}" maxlength="200">
             <button data-comment-btn="${ev.id}">Enviar</button>
           </div>
+          <div style="font-size:10px;color:var(--ink-faint);margin-top:2px;font-style:italic">Dica: @joao @thayane @lianda @ravy</div>
         `;
       }
       commentsHTML += `</div>`;
@@ -2995,6 +3182,7 @@ function renderExistingEvents(){
       </div>
       ${locLine}
       ${descLine}
+      ${statusBar}
       ${tasksLine}
       ${linkLine}
       ${rsvpHTML}
@@ -3060,6 +3248,90 @@ function renderExistingEvents(){
   container.querySelectorAll('[data-act="swap"]').forEach(b => {
     b.addEventListener('click', () => requestDateChange(b.dataset.key, b.dataset.id));
   });
+  container.querySelectorAll('[data-act="prepare"]').forEach(b => {
+    b.addEventListener('click', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
+      if(!ev) return;
+      ev.preparedBy = ev.preparedBy || [];
+      if(ev.preparedBy.includes(state.viewerAs)){
+        ev.preparedBy = ev.preparedBy.filter(p => p !== state.viewerAs);
+      } else {
+        ev.preparedBy.push(state.viewerAs);
+        logHistory(`${COLLABS[state.viewerAs].name} marcou "${ev.title}" como preparado`);
+      }
+      save('events');
+      renderExistingEvents();
+      render();
+      toast('Status atualizado');
+    });
+  });
+  container.querySelectorAll('[data-act="help"]').forEach(b => {
+    b.addEventListener('click', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
+      if(!ev) return;
+      const reason = prompt('O que você precisa de ajuda? (opcional)', '') || '';
+      ev.helpRequest = { who: state.viewerAs, when: new Date().toISOString(), reason };
+      logHistory(`🆘 ${COLLABS[state.viewerAs].name} pediu ajuda em "${ev.title}"`);
+      save('events');
+      renderExistingEvents();
+      render();
+      toast('Pedido de ajuda enviado para a equipe');
+    });
+  });
+  container.querySelectorAll('[data-act="cancel-help"]').forEach(b => {
+    b.addEventListener('click', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
+      if(!ev) return;
+      delete ev.helpRequest;
+      save('events');
+      renderExistingEvents();
+      render();
+      toast('Pedido de ajuda cancelado');
+    });
+  });
+  container.querySelectorAll('[data-act="offer-help"]').forEach(b => {
+    b.addEventListener('click', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
+      if(!ev) return;
+      ev.helpOffers = ev.helpOffers || [];
+      const already = ev.helpOffers.some(o => o.who === state.viewerAs);
+      if(already){
+        ev.helpOffers = ev.helpOffers.filter(o => o.who !== state.viewerAs);
+        toast('Oferta de ajuda removida');
+      } else {
+        ev.helpOffers.push({ who: state.viewerAs, when: new Date().toISOString() });
+        logHistory(`🤝 ${COLLABS[state.viewerAs].name} ofereceu ajuda em "${ev.title}"`);
+        toast('Oferta de ajuda enviada!');
+      }
+      save('events');
+      renderExistingEvents();
+      render();
+    });
+  });
+  container.querySelectorAll('[data-act="substitute"]').forEach(b => {
+    b.addEventListener('click', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
+      if(!ev) return;
+      const targetName = prompt('Quem você quer pedir que substitua? (joão, thayane, lianda, ravy)', '');
+      if(!targetName) return;
+      const target = targetName.toLowerCase().replace(/[ãáà]/g, 'a');
+      if(!COLLABS[target] || target === state.viewerAs){
+        toast('Nome inválido');
+        return;
+      }
+      if(!state.requests) state.requests = [];
+      state.requests.push({
+        id: uid(), type:'substitute', eventId: ev.id, dateKey: activeDateKey,
+        who: state.viewerAs, target,
+        status:'pending', createdAt: new Date().toISOString(), resolvedAt:null
+      });
+      save('requests');
+      logHistory(`${COLLABS[state.viewerAs].name} pediu substituição para ${COLLABS[target].name} em "${ev.title}"`);
+      toast(`Pedido de substituição enviado para ${COLLABS[target].name}`);
+      renderExistingEvents();
+      render();
+    });
+  });
   container.querySelectorAll('[data-act="edit"]').forEach(b => {
     b.addEventListener('click', () => {
       const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
@@ -3076,6 +3348,21 @@ function renderExistingEvents(){
       save('events');
       renderExistingEvents();
       render();
+    });
+  });
+  container.querySelectorAll('[data-thanks-cid]').forEach(b => {
+    b.addEventListener('click', () => {
+      const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.thanksEv);
+      if(!ev) return;
+      const co = (ev.comments||[]).find(c => c.id === b.dataset.thanksCid);
+      if(!co) return;
+      const who = state.role === 'admin' ? 'admin' : state.viewerAs;
+      if(!who) return;
+      co.thanks = co.thanks || [];
+      if(co.thanks.includes(who)) co.thanks = co.thanks.filter(t => t !== who);
+      else co.thanks.push(who);
+      save('events');
+      renderExistingEvents();
     });
   });
   container.querySelectorAll('[data-comment-btn]').forEach(btn => {
@@ -3890,6 +4177,28 @@ function submitMeetingRequest(){
   toast('Convite enviado!');
 }
 
+function respondSubstituteRequest(reqId, response){
+  const req = (state.requests||[]).find(r=>r.id===reqId);
+  if(!req || req.status !== 'pending') return;
+  req.status = response === 'yes' ? 'approved' : 'denied';
+  req.resolvedAt = new Date().toISOString();
+  if(response === 'yes'){
+    // mover tarefas do solicitante para o target
+    const ev = (state.events[req.dateKey]||[]).find(e=>e.id===req.eventId);
+    if(ev && ev.tasks){
+      ev.tasks.forEach(t => { if(t.collab === req.who) t.collab = req.target; });
+      save('events');
+    }
+    logHistory(`${COLLABS[req.target].name} aceitou substituir ${COLLABS[req.who].name}`);
+    toast('Substituição aceita!');
+  } else {
+    logHistory(`${COLLABS[req.target].name} recusou substituir ${COLLABS[req.who].name}`);
+    toast('Substituição recusada');
+  }
+  save('requests');
+  render();
+}
+
 function respondMeetingRequest(reqId, response){
   const req = (state.requests||[]).find(r=>r.id===reqId);
   if(!req || !req.responses || req.status !== 'pending') return;
@@ -3927,6 +4236,266 @@ function respondMeetingRequest(reqId, response){
   }
   save('requests');
   render();
+}
+
+// ============ MY DAY ============
+function openMyDay(){
+  const today = todayKey;
+  const userKey = state.viewerAs;
+  if(!userKey){ toast('Faça login como colaborador'); return; }
+
+  // resumo do dia
+  const todayEvents = (state.events[today]||[]).filter(e => evVisibleTo(e, userKey));
+  const myTaskCount = todayEvents.reduce((sum, e) => {
+    if(!e.tasks) return sum;
+    return sum + e.tasks.filter(t => t.collab === userKey).length;
+  }, 0);
+  const myDoneCount = todayEvents.reduce((sum, e) => {
+    if(!e.tasks) return sum;
+    return sum + e.tasks.filter(t => t.collab === userKey && t.done).length;
+  }, 0);
+  const dayName = new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'});
+  $('#myDayDate').textContent = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  $('#myDayResume').innerHTML = `
+    <div style="display:flex;justify-content:space-around;text-align:center;gap:12px">
+      <div><div style="font-family:Fraunces,serif;font-size:24px;font-weight:700">${todayEvents.length}</div><div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase">Eventos</div></div>
+      <div><div style="font-family:Fraunces,serif;font-size:24px;font-weight:700">${myTaskCount}</div><div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase">Tarefas</div></div>
+      <div><div style="font-family:Fraunces,serif;font-size:24px;font-weight:700;color:var(--success)">${myDoneCount}</div><div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase">Feitas</div></div>
+    </div>
+  `;
+
+  // prioridades
+  renderPriorities();
+  // bloqueios
+  renderBlocks();
+  // diario
+  const myDiary = (state.diary[today] || {})[userKey] || '';
+  $('#diaryText').value = myDiary;
+
+  $('#myDayModal').classList.add('open');
+}
+
+function renderPriorities(){
+  const today = todayKey;
+  const userKey = state.viewerAs;
+  const list = ((state.priorities[today] || {})[userKey] || []);
+  const wrap = $('#prioritiesList');
+  if(!list.length){
+    wrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma prioridade definida</span>';
+    return;
+  }
+  wrap.innerHTML = list.map((p, i) => `
+    <div class="priority-item" draggable="true" data-pi="${i}">
+      <span class="drag-handle">⠿</span>
+      <input type="checkbox" data-pri-check="${i}" ${p.done?'checked':''}>
+      <span class="task-text${p.done?' done':''}" style="flex:1${p.done?';text-decoration:line-through;opacity:0.6':''}">${escapeHtml(p.text)}</span>
+      <button class="task-remove" data-pri-rm="${i}">&times;</button>
+    </div>
+  `).join('');
+  // drag handlers
+  let dragIdx = null;
+  wrap.querySelectorAll('.priority-item').forEach(el => {
+    el.addEventListener('dragstart', e => { dragIdx = +el.dataset.pi; el.style.opacity = '0.4'; });
+    el.addEventListener('dragend', () => { el.style.opacity = ''; });
+    el.addEventListener('dragover', e => { e.preventDefault(); });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      const targetIdx = +el.dataset.pi;
+      if(dragIdx === null || dragIdx === targetIdx) return;
+      const items = state.priorities[today][userKey];
+      const [moved] = items.splice(dragIdx, 1);
+      items.splice(targetIdx, 0, moved);
+      save('priorities');
+      renderPriorities();
+    });
+  });
+  wrap.querySelectorAll('[data-pri-check]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      state.priorities[today][userKey][+cb.dataset.priCheck].done = cb.checked;
+      save('priorities');
+      renderPriorities();
+    });
+  });
+  wrap.querySelectorAll('[data-pri-rm]').forEach(b => {
+    b.addEventListener('click', () => {
+      state.priorities[today][userKey].splice(+b.dataset.priRm, 1);
+      save('priorities');
+      renderPriorities();
+    });
+  });
+}
+
+function addPriority(){
+  const today = todayKey;
+  const userKey = state.viewerAs;
+  const text = $('#newPriorityInput').value.trim();
+  if(!text) return;
+  if(!state.priorities[today]) state.priorities[today] = {};
+  if(!state.priorities[today][userKey]) state.priorities[today][userKey] = [];
+  state.priorities[today][userKey].push({ text, done:false });
+  $('#newPriorityInput').value = '';
+  save('priorities');
+  renderPriorities();
+}
+
+function renderBlocks(){
+  const today = todayKey;
+  const userKey = state.viewerAs;
+  const list = ((state.blocks[today] || {})[userKey] || []);
+  const wrap = $('#blocksList');
+  if(!list.length){
+    wrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhum horário bloqueado</span>';
+    return;
+  }
+  wrap.innerHTML = list.map((b, i) => `
+    <div class="task-item">
+      <span class="task-text">⛔ ${b.start} - ${b.end}${b.reason ? ' · '+escapeHtml(b.reason) : ''}</span>
+      <button class="task-remove" data-block-rm="${i}">&times;</button>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('[data-block-rm]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.blocks[today][userKey].splice(+btn.dataset.blockRm, 1);
+      save('blocks');
+      renderBlocks();
+    });
+  });
+}
+
+function addBlock(){
+  const today = todayKey;
+  const userKey = state.viewerAs;
+  const start = $('#blockStart').value;
+  const end = $('#blockEnd').value;
+  if(!start || !end || end <= start){ toast('Horários inválidos'); return; }
+  const reason = prompt('Motivo (opcional):', '') || '';
+  if(!state.blocks[today]) state.blocks[today] = {};
+  if(!state.blocks[today][userKey]) state.blocks[today][userKey] = [];
+  state.blocks[today][userKey].push({ start, end, reason });
+  save('blocks');
+  renderBlocks();
+}
+
+function saveDiary(){
+  const today = todayKey;
+  const userKey = state.viewerAs;
+  if(!userKey) return;
+  const text = $('#diaryText').value.trim();
+  if(!state.diary[today]) state.diary[today] = {};
+  if(text) state.diary[today][userKey] = text;
+  else delete state.diary[today][userKey];
+  if(Object.keys(state.diary[today]).length === 0) delete state.diary[today];
+  save('diary');
+  toast('Diário salvo');
+}
+
+// ============ KUDOS ============
+function openKudos(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  if(!userKey){ toast('Faça login'); return; }
+  const sel = $('#kudosTo');
+  sel.innerHTML = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== userKey)
+    .map(([k, c]) => `<option value="${k}">${c.name}</option>`).join('');
+  if(userKey !== 'admin') sel.innerHTML += `<option value="admin">${ADMIN_USER.name} (Admin)</option>`;
+  $('#kudosText').value = '';
+  renderKudosList();
+  $('#kudosModal').classList.add('open');
+}
+function renderKudosList(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  const list = (state.kudos || []).filter(k => k.to === userKey || k.from === userKey).slice(-10).reverse();
+  const wrap = $('#kudosList');
+  if(!list.length){
+    wrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Sem elogios ainda</span>';
+    return;
+  }
+  wrap.innerHTML = list.map(k => {
+    const fromName = k.from === 'admin' ? ADMIN_USER.name : (COLLABS[k.from]?.name || k.from);
+    const toName = k.to === 'admin' ? ADMIN_USER.name : (COLLABS[k.to]?.name || k.to);
+    const dt = new Date(k.when);
+    const when = `${pad(dt.getDate())}/${pad(dt.getMonth()+1)}`;
+    return `<div style="border:1px solid var(--muted);border-radius:8px;padding:10px;background:var(--bg)">
+      <div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">⭐ <strong>${escapeHtml(fromName)}</strong> → <strong>${escapeHtml(toName)}</strong> · ${when}</div>
+      <div style="font-size:13px;font-style:italic">${escapeHtml(k.text)}</div>
+    </div>`;
+  }).join('');
+}
+function sendKudos(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  if(!userKey) return;
+  const to = $('#kudosTo').value;
+  const text = $('#kudosText').value.trim();
+  if(!text){ toast('Escreva uma mensagem'); return; }
+  if(!state.kudos) state.kudos = [];
+  state.kudos.push({ id: uid(), from: userKey, to, text, when: new Date().toISOString() });
+  save('kudos');
+  $('#kudosText').value = '';
+  renderKudosList();
+  toast('Elogio enviado!');
+}
+
+// ============ MESSAGES ============
+function openMessages(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  if(!userKey){ toast('Faça login'); return; }
+  const sel = $('#msgTo');
+  const opts = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== userKey)
+    .map(([k, c]) => `<option value="${k}">${c.name}</option>`).join('');
+  sel.innerHTML = opts + (userKey !== 'admin' ? `<option value="admin">${ADMIN_USER.name}</option>` : '');
+  sel.onchange = renderMsgThread;
+  renderMsgThread();
+  $('#messagesModal').classList.add('open');
+  // marcar como lidas
+  (state.messages||[]).forEach(m => { if(m.to === userKey) m.read = true; });
+  save('messages');
+  renderMessagesBadge();
+}
+function renderMsgThread(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  const other = $('#msgTo').value;
+  const thread = (state.messages||[]).filter(m =>
+    (m.from === userKey && m.to === other) || (m.from === other && m.to === userKey)
+  );
+  const wrap = $('#msgThread');
+  if(!thread.length){
+    wrap.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic;text-align:center">Nenhuma mensagem ainda</span>';
+    return;
+  }
+  wrap.innerHTML = thread.map(m => {
+    const isMe = m.from === userKey;
+    const dt = new Date(m.when);
+    const when = `${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+    return `<div style="align-self:${isMe?'flex-end':'flex-start'};background:${isMe?'var(--ink)':'var(--card)'};color:${isMe?'var(--bg)':'var(--ink)'};padding:8px 12px;border-radius:12px;max-width:75%;font-size:13px">
+      ${escapeHtml(m.text)}
+      <div style="font-size:9px;opacity:0.7;margin-top:2px">${when}</div>
+    </div>`;
+  }).join('');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+function sendMessage(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  if(!userKey) return;
+  const to = $('#msgTo').value;
+  const text = $('#msgInput').value.trim();
+  if(!text) return;
+  if(!state.messages) state.messages = [];
+  state.messages.push({ id: uid(), from: userKey, to, text, when: new Date().toISOString(), read: false });
+  save('messages');
+  $('#msgInput').value = '';
+  renderMsgThread();
+}
+function renderMessagesBadge(){
+  const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  const badge = $('#messagesBadge');
+  if(!badge || !userKey) return;
+  const unread = (state.messages||[]).filter(m => m.to === userKey && !m.read).length;
+  if(unread > 0){
+    badge.style.display = 'inline-block';
+    badge.style.cssText = 'display:inline-block;background:var(--danger);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px';
+    badge.textContent = unread;
+  } else {
+    badge.style.display = 'none';
+  }
 }
 
 // ============ EXPORT ============
@@ -4066,6 +4635,16 @@ function bindEvents(){
   $('#exportBtn').addEventListener('click', exportJSON);
   $('#requestsBtn').addEventListener('click', openRequestsModal);
   $('#requestMeetingBtn').addEventListener('click', () => openMeetingRequest());
+  $('#myDayBtn').addEventListener('click', openMyDay);
+  $('#messagesBtn').addEventListener('click', openMessages);
+  $('#kudosBtn').addEventListener('click', openKudos);
+  $('#addPriorityBtn').addEventListener('click', addPriority);
+  $('#newPriorityInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addPriority(); } });
+  $('#addBlockBtn').addEventListener('click', addBlock);
+  $('#saveDiaryBtn').addEventListener('click', saveDiary);
+  $('#kudosSendBtn').addEventListener('click', sendKudos);
+  $('#msgSendBtn').addEventListener('click', sendMessage);
+  $('#msgInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); sendMessage(); } });
   $('#meetingSubmitBtn').addEventListener('click', submitMeetingRequest);
   $('#meetingCancelBtn').addEventListener('click', () => $('#meetingRequestModal').classList.remove('open'));
   $('#saveNoteBtn').addEventListener('click', savePersonalNote);
