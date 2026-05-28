@@ -2345,16 +2345,18 @@ function renderSidebar(){
   }
 
   // meeting request button + invites + my day + msgs + kudos
+  const loggedInAny = state.viewerAs || state.role === 'admin';
   const mrBtn = $('#requestMeetingBtn');
   if(mrBtn) mrBtn.style.display = state.viewerAs ? '' : 'none';
   const myDayBtn = $('#myDayBtn');
   if(myDayBtn) myDayBtn.style.display = state.viewerAs ? '' : 'none';
+  // mensagens, kudos e diario disponivel para admin tambem
   const msgsBtn = $('#messagesBtn');
-  if(msgsBtn) msgsBtn.style.display = state.viewerAs ? '' : 'none';
+  if(msgsBtn) msgsBtn.style.display = loggedInAny ? '' : 'none';
   const kBtn = $('#kudosBtn');
-  if(kBtn) kBtn.style.display = state.viewerAs ? '' : 'none';
+  if(kBtn) kBtn.style.display = loggedInAny ? '' : 'none';
   const dBtn = $('#diaryBtn');
-  if(dBtn) dBtn.style.display = state.viewerAs ? '' : 'none';
+  if(dBtn) dBtn.style.display = loggedInAny ? '' : 'none';
   renderMessagesBadge();
   renderKudosBadge();
   const invWrap = $('#meetingInvites');
