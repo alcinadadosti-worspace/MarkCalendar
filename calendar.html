@@ -3013,9 +3013,10 @@ function renderExistingEvents(){
       const names = prepArr.map(p => COLLABS[p] ? COLLABS[p].name : p).join(', ');
       statusBar += `<span class="ev-flag-badge prep">🎯 ${names} preparado</span>`;
     }
-    if(ev.helpRequest){
-      const helpWho = COLLABS[ev.helpRequest.who] ? COLLABS[ev.helpRequest.who].name : ev.helpRequest.who;
-      statusBar += `<span class="ev-flag-badge help">🆘 ${helpWho} pediu ajuda</span>`;
+    const helpArr = ev.helpRequests || (ev.helpRequest ? [ev.helpRequest] : []);
+    if(helpArr.length){
+      const names = helpArr.map(h => COLLABS[h.who] ? COLLABS[h.who].name : h.who).join(', ');
+      statusBar += `<span class="ev-flag-badge help">🆘 ${names} pediu ajuda</span>`;
     }
     if(ev.helpOffers && ev.helpOffers.length){
       const offers = ev.helpOffers.map(o => COLLABS[o.who] ? COLLABS[o.who].name : o.who).join(', ');
@@ -3116,7 +3117,8 @@ function renderExistingEvents(){
         : `<button class="btn small" data-act="prepare" data-id="${ev.id}">🎯 Marcar como preparado</button>`;
 
       // Pedir ajuda
-      const helpAlreadyRequested = ev.helpRequest && ev.helpRequest.who === state.viewerAs;
+      const helpList = ev.helpRequests || (ev.helpRequest ? [ev.helpRequest] : []);
+      const helpAlreadyRequested = helpList.some(h => h.who === state.viewerAs);
       const helpBtn = helpAlreadyRequested
         ? `<button class="btn small" data-act="cancel-help" data-id="${ev.id}" style="background:#FFE0B2">🆘 Cancelar pedido</button>`
         : `<button class="btn small" data-act="help" data-id="${ev.id}">🆘 Pedir ajuda</button>`;
@@ -3270,7 +3272,9 @@ function renderExistingEvents(){
       const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
       if(!ev) return;
       const reason = prompt('O que você precisa de ajuda? (opcional)', '') || '';
-      ev.helpRequest = { who: state.viewerAs, when: new Date().toISOString(), reason };
+      ev.helpRequests = ev.helpRequests || [];
+      if(ev.helpRequests.some(h => h.who === state.viewerAs)) return;
+      ev.helpRequests.push({ who: state.viewerAs, when: new Date().toISOString(), reason });
       logHistory(`🆘 ${COLLABS[state.viewerAs].name} pediu ajuda em "${ev.title}"`);
       save('events');
       renderExistingEvents();
@@ -3282,7 +3286,8 @@ function renderExistingEvents(){
     b.addEventListener('click', () => {
       const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
       if(!ev) return;
-      delete ev.helpRequest;
+      if(ev.helpRequests) ev.helpRequests = ev.helpRequests.filter(h => h.who !== state.viewerAs);
+      delete ev.helpRequest; // legacy
       save('events');
       renderExistingEvents();
       render();
@@ -4394,9 +4399,9 @@ function openKudos(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
   if(!userKey){ toast('Faça login'); return; }
   const sel = $('#kudosTo');
-  sel.innerHTML = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== userKey)
+  const opts = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== userKey)
     .map(([k, c]) => `<option value="${k}">${c.name}</option>`).join('');
-  if(userKey !== 'admin') sel.innerHTML += `<option value="admin">${ADMIN_USER.name} (Admin)</option>`;
+  sel.innerHTML = opts + (userKey === 'admin' ? '' : `<option value="admin">${ADMIN_USER.name} (Admin)</option>`);
   $('#kudosText').value = '';
   renderKudosList();
   $('#kudosModal').classList.add('open');
@@ -4488,7 +4493,7 @@ function renderMessagesBadge(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
   const badge = $('#messagesBadge');
   if(!badge || !userKey) return;
-  const unread = (state.messages||[]).filter(m => m.to === userKey && !m.read).length;
+  const unread = (state.messages||[]).filter(m => m.to === userKey && m.read === false).length;
   if(unread > 0){
     badge.style.display = 'inline-block';
     badge.style.cssText = 'display:inline-block;background:var(--danger);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:999px;margin-left:4px';
