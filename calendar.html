@@ -265,6 +265,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 /* completed events */
 .event.completed{text-decoration:line-through;opacity:.6}
+.week-event.completed{text-decoration:line-through;opacity:.6}
 .ee-completed{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--success);font-weight:600}
 
 /* personal notes */
@@ -1744,6 +1745,14 @@ function evFullyDone(ev){
   }
   return !!ev.completed;
 }
+function evDoneFor(ev, who){
+  if(!who) return evFullyDone(ev);
+  if(ev.tasks && ev.tasks.length){
+    const myTasks = ev.tasks.filter(t => typeof t === 'object' && t.collab === who);
+    if(myTasks.length){ return myTasks.every(t => t.done); }
+  }
+  return !!ev.completed;
+}
 function evGradient(ev){
   if(!ev.tasks || ev.tasks.length === 0) return null;
   const unique = [...new Set(ev.tasks.map(t => t.collab))].filter(c => COLLABS[c]);
@@ -2450,7 +2459,8 @@ function renderMonth(){
       const isDimmed = state.filterCollab && ev.collab !== state.filterCollab && !state.showOnlyMine;
       const isTeamReadonly = state.viewMode === 'team' && state.viewerAs && !evVisibleTo(ev, state.viewerAs);
       const eEl = document.createElement('div');
-      eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '') + (evFullyDone(ev) ? ' completed' : '') + (isTeamReadonly ? ' team-readonly' : '');
+      const doneForMe = evDoneFor(ev, state.role === 'admin' ? null : state.viewerAs);
+      eEl.className = 'event ' + c.color + (ev.pinned ? ' pinned' : '') + (isDimmed ? ' dimmed' : '') + (doneForMe ? ' completed' : '') + (isTeamReadonly ? ' team-readonly' : '');
       const grad = evGradient(ev);
       if(grad){ eEl.style.background = grad; eEl.style.color = 'var(--ink)'; }
       let timeBit = '';
@@ -2585,7 +2595,8 @@ function renderWeek(){
       const type = EVENT_TYPES[ev.type || 'outro'];
       const isDimmed = state.filterCollab && ev.collab !== state.filterCollab && !state.showOnlyMine;
       const we = document.createElement('div');
-      we.className = 'week-event ' + c.color + (isDimmed ? ' dimmed' : '');
+      const weDone = evDoneFor(ev, state.role === 'admin' ? null : state.viewerAs);
+      we.className = 'week-event ' + c.color + (isDimmed ? ' dimmed' : '') + (weDone ? ' completed' : '');
       const weGrad = evGradient(ev);
       if(weGrad){ we.style.background = weGrad; we.style.color = 'var(--ink)'; }
       we.style.top = top + 'px';
