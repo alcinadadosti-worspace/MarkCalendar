@@ -2800,7 +2800,7 @@ function fillFormFor(ev){
   $('#eventPrivate').checked = !!ev.private;
   formSelectedCollab = ev.collab;
   formSelectedType = ev.type || 'reuniao';
-  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? {collab:ev.collab, text:t, done:false} : t);
+  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? {id:uid(), collab:ev.collab, text:t, done:false} : {id:t.id||uid(), ...t});
   updatePickerSelections();
   renderTaskList();
   $('#saveBtn').textContent = 'Salvar alterações';
@@ -2865,7 +2865,7 @@ function renderExistingEvents(){
       tasksLine = '<div style="margin-top:8px;border-top:1px dashed var(--muted);padding-top:8px"><span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);display:block;margin-bottom:6px">Tarefas da equipe</span>';
       const grouped = {};
       ev.tasks.forEach((t,i) => {
-        const task = typeof t === 'string' ? {collab:ev.collab, text:t, done:false, _i:i} : {...t, _i:i};
+        const task = typeof t === 'string' ? {id:'legacy_'+i, collab:ev.collab, text:t, done:false} : {id:t.id||('legacy_'+i), ...t};
         if(!grouped[task.collab]) grouped[task.collab] = [];
         grouped[task.collab].push(task);
       });
@@ -2876,7 +2876,7 @@ function renderExistingEvents(){
         tasksLine += `<div style="margin-bottom:6px"><div style="display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;margin-bottom:2px">${photo} ${name}</div>`;
         tasks.forEach(task => {
           tasksLine += `<div class="task-check${task.done?' done':''}">
-            <input type="checkbox" data-task-ev="${ev.id}" data-task-i="${task._i}" ${task.done?'checked':''}>
+            <input type="checkbox" data-task-ev="${ev.id}" data-task-id="${task.id}" ${task.done?'checked':''}>
             <span class="task-label">${escapeHtml(task.text)}</span>
           </div>`;
         });
@@ -3006,9 +3006,17 @@ function renderExistingEvents(){
     cb.addEventListener('change', () => {
       const ev = (state.events[activeDateKey]||[]).find(x=>x.id===cb.dataset.taskEv);
       if(!ev || !ev.tasks) return;
-      const idx = +cb.dataset.taskI;
-      if(typeof ev.tasks[idx] === 'string') ev.tasks[idx] = {text:ev.tasks[idx], done:false};
-      ev.tasks[idx].done = cb.checked;
+      const taskId = cb.dataset.taskId;
+      let task;
+      if(taskId && taskId.startsWith('legacy_')){
+        const idx = parseInt(taskId.replace('legacy_',''), 10);
+        if(typeof ev.tasks[idx] === 'string') ev.tasks[idx] = {id:uid(), collab:ev.collab, text:ev.tasks[idx], done:false};
+        task = ev.tasks[idx];
+      } else {
+        task = ev.tasks.find(t => t && t.id === taskId);
+      }
+      if(!task) return;
+      task.done = cb.checked;
       save('events');
       renderExistingEvents();
     });
@@ -3141,7 +3149,7 @@ function saveEvent(){
     ev.recurring = $('#eventRecurring').value;
     ev.pinned = $('#eventPinned').checked;
     ev.private = $('#eventPrivate').checked;
-    ev.tasks = formTasks.map(t => ({collab:t.collab, text:t.text, done:t.done||false}));
+    ev.tasks = formTasks.map(t => ({id:t.id||uid(), collab:t.collab, text:t.text, done:t.done||false}));
     logHistory(`Editou "${oldTitle}" → "${title}"`);
     save('events');
     toast('Evento atualizado');
@@ -3162,7 +3170,7 @@ function saveEvent(){
       createdAt: new Date().toISOString(),
       rsvp: {},
       comments: [],
-      tasks: formTasks.length ? formTasks.map(t => ({collab:t.collab, text:t.text, done:false})) : []
+      tasks: formTasks.length ? formTasks.map(t => ({id:uid(), collab:t.collab, text:t.text, done:false})) : []
     };
     if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
     state.events[activeDateKey].push(newEv);
@@ -3579,7 +3587,7 @@ function addTaskAssign(){
   const input = $('#taskAssignInput');
   const text = input.value.trim();
   if(!text){ input.focus(); return; }
-  formTasks.push({ collab, text, done:false });
+  formTasks.push({ id:uid(), collab, text, done:false });
   input.value = '';
   renderTaskList();
   input.focus();
@@ -4021,7 +4029,7 @@ function bindEvents(){
       $('#taskAssignInput').focus();
       return;
     }
-    formTasks.push({ collab, text: btn.dataset.quick, done: false });
+    formTasks.push({ id:uid(), collab, text: btn.dataset.quick, done: false });
     renderTaskList();
   });
   $('#deleteNoteBtn').addEventListener('click', deletePersonalNote);
