@@ -2809,7 +2809,7 @@ function fillFormFor(ev){
   $('#eventPrivate').checked = !!ev.private;
   formSelectedCollab = ev.collab;
   formSelectedType = ev.type || 'reuniao';
-  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? {id:uid(), collab:ev.collab, text:t, done:false} : {id:t.id||uid(), ...t});
+  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? {id:uid(), collab:ev.collab, text:t, done:false} : {...t, id: t.id || uid()});
   updatePickerSelections();
   renderTaskList();
   $('#saveBtn').textContent = 'Salvar alterações';
@@ -2874,7 +2874,7 @@ function renderExistingEvents(){
       tasksLine = '<div style="margin-top:8px;border-top:1px dashed var(--muted);padding-top:8px"><span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);display:block;margin-bottom:6px">Tarefas da equipe</span>';
       const grouped = {};
       ev.tasks.forEach((t,i) => {
-        const task = typeof t === 'string' ? {id:'legacy_'+i, collab:ev.collab, text:t, done:false} : {id:t.id||('legacy_'+i), ...t};
+        const task = typeof t === 'string' ? {id:'legacy_'+i, collab:ev.collab, text:t, done:false} : {...t, id: t.id || ('legacy_'+i)};
         if(!grouped[task.collab]) grouped[task.collab] = [];
         grouped[task.collab].push(task);
       });
