@@ -339,8 +339,8 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .msg-bubble.me{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:4px}
 .msg-bubble.other{align-self:flex-start;background:var(--card);color:var(--ink);border:1px solid var(--muted);border-bottom-left-radius:4px}
 .msg-bubble .when{font-size:9.5px;opacity:0.65;margin-top:3px;display:block}
-@media(max-width:680px){
-  .msg-layout{height:85vh}
+@media(max-width:768px){
+  .msg-layout{height:100vh;min-height:100vh}
   .msg-sidebar{width:100%;display:flex}
   .msg-chat{display:none}
   .msg-layout.chat-open .msg-sidebar{display:none}
@@ -966,22 +966,120 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   .calendar .cell{animation-duration:.15s}
   .event{animation:none}
   .existing-event{animation-duration:.15s}
+
+  /* ============ MOBILE FIXES FOR NEW FEATURES ============ */
+
+  /* event flags (preparado, ajuda, etc) */
+  .ev-flags{gap:4px}
+  .ev-flag-badge{font-size:10px;padding:3px 7px}
+
+  /* event action buttons - wrap nicely */
+  .ee-actions{flex-direction:column;gap:6px}
+  .ee-actions .btn.small{width:100%;text-align:center;justify-content:center;font-size:12px;min-height:42px}
+  .ee-actions span{text-align:center;width:100%}
+
+  /* task assignment picker in event form */
+  #taskAssignWrap select{font-size:16px;padding:12px;min-height:44px}
+  #taskAssignInput{font-size:16px;min-height:44px;padding:12px}
+  .task-quick-picker{gap:4px}
+  .task-quick{font-size:12px;padding:8px 10px;min-height:36px}
+  .task-item{padding:8px 10px;font-size:13px}
+  .task-item img{flex-shrink:0}
+
+  /* tasks display in event modal */
+  .task-check{padding:6px 4px;font-size:14px;min-height:32px}
+  .task-check input{width:20px;height:20px;flex-shrink:0}
+
+  /* messages modal full screen */
+  #messagesModal .modal{padding:0;border-radius:0;max-height:100vh;height:100vh;max-width:100%;width:100%}
+  #messagesModal .modal::before{display:none}
+  .msg-layout{height:100vh}
+  .msg-sidebar{padding-top:env(safe-area-inset-top)}
+  .msg-contact{padding:12px 14px;min-height:60px}
+  .msg-contact img,.msg-contact-avatar-fallback{width:44px;height:44px}
+  .msg-contact-name{font-size:14px}
+  .msg-contact-preview{font-size:12px}
+  .msg-chat-header{padding:14px;min-height:56px;padding-top:max(14px, env(safe-area-inset-top))}
+  #msgInputWrap{padding:10px;padding-bottom:max(10px, env(safe-area-inset-bottom))}
+  #msgInput{font-size:16px}
+  .msg-bubble{font-size:14px;max-width:80%;padding:10px 14px}
+
+  /* my day modal */
+  #myDayModal .modal{padding:16px}
+  #myDayResume{padding:14px}
+  #myDayResume > div > div > div{font-size:22px !important}
+  .priority-item{font-size:13px;padding:8px;min-height:44px;display:flex;align-items:center;gap:8px}
+  .priority-item input[type=checkbox]{width:20px;height:20px}
+  .drag-handle{display:none}
+  #newPriorityInput,#blockStart,#blockEnd{font-size:16px;min-height:44px}
+
+  /* diary modal */
+  #diaryModal .modal{padding:16px}
+  #diaryDate{font-size:16px;min-height:44px}
+  #diaryFullText{font-size:15px;min-height:160px;padding:14px}
+  .diary-entry{padding:14px;font-size:13px}
+
+  /* kudos modal */
+  #kudosModal .modal{padding:16px}
+  #kudosTo{font-size:16px;min-height:44px;padding:12px}
+  #kudosText{font-size:15px;min-height:90px}
+
+  /* requests modal */
+  #requestsModal .request-card{padding:14px}
+
+  /* sidebar buttons in drawer */
+  .sidebar .btn.small{font-size:13px;min-height:40px;padding:10px 12px}
+
+  /* comments */
+  .comment{flex-wrap:wrap;font-size:13px;gap:6px;padding:8px 0;border-bottom:1px solid var(--muted)}
+  .comment .who{font-weight:700;width:100%}
+  .comment .when{font-size:10px;margin-left:auto}
+  .comment-thanks{font-size:11px;padding:4px 8px;min-height:30px}
+
+  /* mention badges */
+  .ev-mention{font-size:13px;padding:2px 6px}
+
+  /* meeting modal collab picker */
+  #meetingCollabPicker .pick{min-height:44px}
+
+  /* status modal for admin */
+  .status-team-item{display:flex;align-items:center;gap:8px;padding:10px}
+
+  /* settings modal scroll */
+  #settingsModal .modal{max-height:88vh;overflow-y:auto}
+
+  /* better input experience */
+  input[type=text],input[type=date],input[type=time],input[type=number],input[type=tel],select,textarea{
+    font-size:16px !important;
+    -webkit-appearance:none;
+    appearance:none;
+  }
 }
 
 /* extra small phones */
 @media (max-width:380px){
   body{padding:6px 4px;padding-bottom:68px}
   .header{gap:4px}
-  .month-title{font-size:22px}
-  .nav-btn{width:32px;height:32px}
+  .month-title{font-size:20px}
+  .year{font-size:12px}
+  .nav-btn{width:30px;height:30px;font-size:12px}
+  .nav-btn.wide{padding:0 8px;font-size:10px}
   .clock{display:none}
   .calendar{gap:1px}
-  .cell{min-height:48px;padding:3px 4px}
-  .day-num{font-size:12px}
-  .event{font-size:8px;padding:1px 3px}
+  .cell{min-height:44px;padding:2px 3px}
+  .day-num{font-size:11px}
+  .event{font-size:8px;padding:1px 2px}
+  .event .ev-task-badge{font-size:7px;min-width:10px;padding:0 3px}
   .banner{padding:6px 8px}
+  .banner-value{font-size:11px}
   .bnav-btn{padding:6px 8px;font-size:9px}
   .bnav-btn svg{width:20px;height:20px}
+  .ee-actions .btn.small{font-size:11px}
+  .task-quick{font-size:11px;padding:6px 8px}
+  .msg-contact img,.msg-contact-avatar-fallback{width:38px;height:38px}
+  .msg-bubble{font-size:13px;max-width:85%}
+  .modal h3{font-size:17px}
+  .modal .sub{font-size:11px}
 }
 </style>
 </head>
