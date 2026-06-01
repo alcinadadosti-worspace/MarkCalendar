@@ -1981,9 +1981,11 @@ function startRealtimeSync(){
           try{
             var parsed = JSON.parse(val);
             if(JSON.stringify(state[key]) !== val){
+              var oldVal = state[key];
               state[key] = parsed;
               localStorage.setItem('cache_' + key, val);
               changed = true;
+              detectAndNotify(key, oldVal, parsed);
             }
           }catch(e){}
         }
@@ -1991,6 +1993,105 @@ function startRealtimeSync(){
     });
     if(changed) render();
   });
+}
+
+// ============ NOTIFICATIONS ============
+function requestNotificationPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'default'){
+    Notification.requestPermission().then(p => {
+      if(p === 'granted') toast('🔔 Notificações ativadas');
+    });
+  }
+}
+
+function notify(title, body, tag){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  if(!document.hidden && !tag) return; // se a aba esta visivel, so notifica eventos importantes (com tag)
+  try{
+    const n = new Notification(title, {
+      body, icon: 'logo.png', badge: 'icon-192.svg',
+      tag: tag || ('cal-' + Date.now()), renotify: false
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+    setTimeout(() => n.close(), 8000);
+  }catch(e){ console.warn('notify failed', e); }
+}
+
+function detectAndNotify(key, oldVal, newVal){
+  const me = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  if(!me) return;
+
+  if(key === 'messages'){
+    const oldIds = new Set((oldVal||[]).map(m => m.id));
+    (newVal||[]).forEach(m => {
+      if(!oldIds.has(m.id) && m.to === me && m.from !== me){
+        const fromName = m.from === 'admin' ? ADMIN_USER.name : (COLLABS[m.from]?.name || m.from);
+        notify(`💬 ${fromName}`, m.text.slice(0, 100), 'msg-' + m.from);
+      }
+    });
+  }
+
+  if(key === 'kudos'){
+    const oldIds = new Set((oldVal||[]).map(k => k.id));
+    (newVal||[]).forEach(k => {
+      if(!oldIds.has(k.id) && k.to === me && k.from !== me){
+        const fromName = k.from === 'admin' ? ADMIN_USER.name : (COLLABS[k.from]?.name || k.from);
+        notify(`⭐ Elogio de ${fromName}`, k.text.slice(0, 100), 'kudos-' + k.id);
+      }
+    });
+  }
+
+  if(key === 'requests'){
+    const oldIds = new Set((oldVal||[]).map(r => r.id));
+    (newVal||[]).forEach(r => {
+      if(oldIds.has(r.id)) return;
+      const fromName = r.who === 'admin' ? ADMIN_USER.name : (COLLABS[r.who]?.name || r.who);
+      if(r.type === 'meeting' && r.responses && r.responses[me] === 'pending'){
+        notify(`📅 Convite de reunião`, `${fromName} quer marcar reunião em ${r.suggestedDate}`, 'meet-' + r.id);
+      } else if(r.type === 'substitute' && r.target === me){
+        notify(`🔄 Pedido de substituição`, `${fromName} pediu para você cobrir`, 'sub-' + r.id);
+      } else if(r.type === 'date-change' && state.role === 'admin'){
+        notify(`🗓️ Nova solicitação`, `${fromName} quer trocar data de um evento`, 'dc-' + r.id);
+      }
+    });
+  }
+
+  if(key === 'events'){
+    // detectar @mentions em novos comentarios e nova ajuda/oferta em meus eventos
+    Object.entries(newVal || {}).forEach(([dk, evs]) => {
+      const oldEvs = (oldVal || {})[dk] || [];
+      evs.forEach(ev => {
+        const oldEv = oldEvs.find(o => o.id === ev.id);
+
+        // novos comentarios com @mention pra mim
+        const oldCommentIds = new Set((oldEv?.comments || []).map(c => c.id));
+        (ev.comments || []).forEach(c => {
+          if(oldCommentIds.has(c.id) || c.who === me) return;
+          // verificar se sou mencionado
+          const myName = me === 'admin' ? ADMIN_USER.name : COLLABS[me]?.name;
+          if(!myName) return;
+          const myKey = me === 'admin' ? 'admin' : me;
+          const re = new RegExp('@(' + myKey + '|' + myName.toLowerCase() + ')\\b', 'i');
+          if(re.test(c.text)){
+            const fromName = c.who === 'admin' ? ADMIN_USER.name : (COLLABS[c.who]?.name || c.who);
+            notify(`@ ${fromName} mencionou você`, c.text.slice(0, 100), 'mention-' + c.id);
+          }
+        });
+
+        // alguem ofereceu ajuda em um evento meu
+        const oldOfferIds = new Set((oldEv?.helpOffers || []).map(o => o.who + o.when));
+        (ev.helpOffers || []).forEach(o => {
+          if(oldOfferIds.has(o.who + o.when) || o.who === me) return;
+          const isMyEv = ev.collab === me || (ev.tasks && ev.tasks.some(t => t.collab === me));
+          if(isMyEv){
+            const fromName = COLLABS[o.who]?.name || o.who;
+            notify(`🤝 ${fromName} ofereceu ajuda`, ev.title, 'offer-' + o.who + ev.id);
+          }
+        });
+      });
+    });
+  }
 }
 
 // Sessao gerenciada pelo Firebase Auth (onAuthStateChanged)
@@ -5100,6 +5201,7 @@ function bindEvents(){
         startRealtimeSync();
         render();
         initUserLocation();
+        setTimeout(requestNotificationPermission, 2000);
       } else {
         auth.signOut();
         openLogin();
