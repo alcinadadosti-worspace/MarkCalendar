@@ -1537,7 +1537,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <input type="text" id="substituteReason" placeholder="Ex: imprevisto, viagem..." maxlength="100">
     </div>
     <div class="modal-actions">
-      <button class="btn" onclick="document.getElementById('substituteModal').classList.remove('open')">Cancelar</button>
+      <button class="btn" id="substituteCancelBtn">Cancelar</button>
       <button class="btn primary" id="substituteConfirmBtn">Enviar pedido</button>
     </div>
   </div>
@@ -2687,8 +2687,8 @@ function renderSidebar(){
           const parts = dk.split('-');
           state.current = new Date(+parts[0], +parts[1]-1, +parts[2]);
           if(state.view === 'month') state.current.setDate(1);
-          render();
           openModal(dk);
+          render();
         });
       });
     } else { helpWrap.innerHTML = ''; }
@@ -3737,10 +3737,13 @@ function renderExistingEvents(){
         return `<div class="mention-option${i===0?' active':''}" data-mname="${c.name}">${photo}<span>${c.name}</span></div>`;
       }).join('');
       dropdown.style.display = 'block';
-      dropdown.querySelectorAll('.mention-option').forEach(opt => {
-        opt.addEventListener('click', () => insertMention(opt.dataset.mname));
-      });
     };
+
+    // event delegation - 1 listener so para todo o dropdown
+    dropdown.addEventListener('click', (e) => {
+      const opt = e.target.closest('.mention-option');
+      if(opt) insertMention(opt.dataset.mname);
+    });
 
     const insertMention = (name) => {
       const v = input.value;
@@ -4612,6 +4615,11 @@ function openSubstituteModal(eventId){
   });
   $('#substituteModal').classList.add('open');
 }
+function closeSubstituteModal(){
+  $('#substituteModal').classList.remove('open');
+  substituteEventId = null;
+  substituteTarget = null;
+}
 function confirmSubstitute(){
   if(!substituteTarget){ toast('Selecione um colega'); return; }
   const ev = (state.events[activeDateKey]||[]).find(x => x.id === substituteEventId);
@@ -4626,7 +4634,7 @@ function confirmSubstitute(){
   save('requests');
   logHistory(`${COLLABS[state.viewerAs].name} pediu substituição para ${COLLABS[substituteTarget].name} em "${ev.title}"`);
   toast(`Pedido enviado para ${COLLABS[substituteTarget].name}`);
-  $('#substituteModal').classList.remove('open');
+  closeSubstituteModal();
   renderExistingEvents();
   render();
 }
@@ -5268,6 +5276,7 @@ function bindEvents(){
   $('#diaryFullText').addEventListener('input', updateDiaryWordCount);
   $('#diaryFullSaveBtn').addEventListener('click', saveDiaryFull);
   $('#substituteConfirmBtn').addEventListener('click', confirmSubstitute);
+  $('#substituteCancelBtn').addEventListener('click', closeSubstituteModal);
   $('#addPriorityBtn').addEventListener('click', addPriority);
   $('#newPriorityInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addPriority(); } });
   $('#addBlockBtn').addEventListener('click', addBlock);
