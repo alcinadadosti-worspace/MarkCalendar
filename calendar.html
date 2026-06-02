@@ -4119,10 +4119,16 @@ function openInsights(){
 // ============ HISTORY MODAL ============
 function openHistory(){
   const wrap = $('#historyBody');
-  if(state.history.length === 0){
-    wrap.innerHTML = '<div class="history-empty">Sem atividade ainda. Crie ou edite eventos pra ver o histórico aqui.</div>';
+  // filtrar apenas eventos e tarefas (sem login, logout, sessoes)
+  const EVENT_KEYWORDS = ['criou', 'editou', 'excluiu', 'moveu', 'concluiu', 'marcou', 'pediu', 'ofereceu', 'aprovou', 'negou', 'convidou', 'aceitou', 'recusou', 'reunião confirmada', 'solicitou'];
+  const filtered = (state.history || []).filter(h => {
+    const action = (h.action || '').toLowerCase();
+    return EVENT_KEYWORDS.some(kw => action.includes(kw));
+  });
+  if(!filtered.length){
+    wrap.innerHTML = '<div class="history-empty">Sem atividade de eventos ainda. Crie ou edite eventos pra ver o histórico aqui.</div>';
   } else {
-    wrap.innerHTML = '<div class="history-list">' + state.history.map(h => {
+    wrap.innerHTML = '<div class="history-list">' + filtered.slice().reverse().map(h => {
       const d = new Date(h.when);
       const when = `${pad(d.getDate())}/${pad(d.getMonth()+1)} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
       return `<div class="history-item">
