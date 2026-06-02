@@ -1805,10 +1805,10 @@ window.storage = {
 
 // ============ CONSTANTES ============
 const COLLABS = {
-  joao:    { name:'João',    color:'color-joao',    cssVar:'--c-joao',    initial:'J', photo:'João.jpg' },
-  thayane: { name:'Thayane', color:'color-thayane', cssVar:'--c-thayane', initial:'T', photo:'Thayane.png' },
-  lianda:  { name:'Lianda',  color:'color-lianda',  cssVar:'--c-lianda',  initial:'L', photo:'Lianda.png' },
-  ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R', photo:'Ravy.jpg' },
+  joao:    { name:'João',    color:'color-joao',    cssVar:'--c-joao',    initial:'J', photo:'João.jpg',    homeCity:'palmeira' },
+  thayane: { name:'Thayane', color:'color-thayane', cssVar:'--c-thayane', initial:'T', photo:'Thayane.png', homeCity:'penedo' },
+  lianda:  { name:'Lianda',  color:'color-lianda',  cssVar:'--c-lianda',  initial:'L', photo:'Lianda.png',  homeCity:'penedo' },
+  ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R', photo:'Ravy.jpg',    homeCity:'penedo' },
   todos:   { name:'Todos',  color:'color-todos',   cssVar:'--c-todos',   initial:'★', photo:'' }
 };
 const ADMIN_USER = { name:'Suzana', photo:'Suzana.png' };
@@ -2395,6 +2395,14 @@ async function fetchCityForecast(city){
 }
 
 async function initUserLocation(){
+  // 1. Tenta usar a cidade do colaborador (mais preciso)
+  const myCollab = state.viewerAs && COLLABS[state.viewerAs];
+  if(myCollab && myCollab.homeCity){
+    userCity = CITIES.find(c => c.id === myCollab.homeCity) || CITIES[1];
+    renderBannerWeather();
+    return;
+  }
+  // 2. Fallback: geolocation
   try {
     const pos = await new Promise((ok, fail) => navigator.geolocation.getCurrentPosition(ok, fail, { timeout:8000 }));
     userCity = findNearestCity(pos.coords.latitude, pos.coords.longitude);
@@ -3018,13 +3026,23 @@ function renderWeek(){
   // head
   const head = $('#weekHead');
   head.innerHTML = '<div></div>'; // espaço da coluna de horas
+  const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
   for(let i=0;i<7;i++){
     const d = new Date(start); d.setDate(start.getDate()+i);
     const isToday = keyFromDate(d) === todayKey;
+    const k = keyFromDate(d);
+    let noteMark = '';
+    if(noteUser && state.notes[k] && state.notes[k][noteUser]){
+      const n = state.notes[k][noteUser];
+      const nIcon = typeof n === 'string' ? '📝' : (n.icon || '📝');
+      const nText = typeof n === 'string' ? n : (n.text || '');
+      noteMark = `<span class="day-note-mark" style="position:absolute;top:4px;right:4px" title="${escapeHtml(nText.slice(0,60))}">${nIcon}</span>`;
+    }
     head.innerHTML += `
-      <div>
+      <div style="position:relative">
         <div class="wd-name">${WEEKDAYS_SHORT[i]}</div>
         <div class="wd-num">${isToday ? `<span class="wd-today">${d.getDate()}</span>` : d.getDate()}</div>
+        ${noteMark}
       </div>
     `;
   }
@@ -3124,7 +3142,16 @@ function renderDay(){
   const key = keyFromDate(ref);
   const dow = ref.getDay();
   $('#dayViewTitle').textContent = `${ref.getDate()} de ${MONTHS_PT[ref.getMonth()].toLowerCase()}`;
-  $('#dayViewSub').textContent = WEEKDAYS_FULL[dow];
+  // adicionar nota do dia
+  const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
+  let subExtra = '';
+  if(noteUser && state.notes[key] && state.notes[key][noteUser]){
+    const n = state.notes[key][noteUser];
+    const nIcon = typeof n === 'string' ? '📝' : (n.icon || '📝');
+    const nText = typeof n === 'string' ? n : (n.text || '');
+    subExtra = ` <span title="${escapeHtml(nText.slice(0,80))}" style="font-size:16px;margin-left:6px">${nIcon}</span>`;
+  }
+  $('#dayViewSub').innerHTML = WEEKDAYS_FULL[dow] + subExtra;
 
   const grid = $('#dayGrid');
   grid.innerHTML = '';
@@ -4112,19 +4139,26 @@ function openStatus(){
   const wrap = $('#statusBody');
   const today = todayKey;
   const todayStatuses = state.statuses[today] || {};
-  let html = '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Defina o status de cada um para hoje:</p>';
+  const isAdmin = state.role === 'admin';
+  const myKey = state.viewerAs;
+
+  let html = isAdmin
+    ? '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Defina o status de cada um para hoje:</p>'
+    : '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Apenas a gestora pode alterar o status da equipe. Você pode ver os status de todos abaixo:</p>';
 
   Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
     const current = todayStatuses[k] || 'office';
+    // viewer so pode editar seu proprio status
+    const canEdit = isAdmin || k === myKey;
     html += `
       <div style="margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
           <div class="avatar" style="background:var(${info.cssVar});width:22px;height:22px;font-size:10px">${info.initial}</div>
-          <strong style="font-size:13px">${info.name}</strong>
+          <strong style="font-size:13px">${info.name}${k === myKey ? ' (você)' : ''}</strong>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:4px">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:4px${!canEdit ? ';opacity:0.6;pointer-events:none' : ''}">
           ${Object.entries(STATUS_LABELS).map(([s, sl]) => `
-            <button class="pick" data-status="${s}" data-collab="${k}" style="font-size:11px;padding:6px;text-align:center;justify-content:center${current===s?';box-shadow:var(--shadow)':''}">
+            <button class="pick" ${canEdit?`data-status="${s}" data-collab="${k}"`:''} style="font-size:11px;padding:6px;text-align:center;justify-content:center${current===s?';box-shadow:var(--shadow)':''}${!canEdit?';cursor:default':''}">
               <span class="dot ${sl.cls}" style="border-radius:50%"></span>
               ${sl.label}
             </button>
@@ -4138,6 +4172,8 @@ function openStatus(){
   $('#statusBody').querySelectorAll('[data-status]').forEach(b => {
     b.addEventListener('click', () => {
       const col = b.dataset.collab, st = b.dataset.status;
+      // defesa: revalidar permissao
+      if(state.role !== 'admin' && col !== state.viewerAs){ toast('Sem permissão'); return; }
       if(!state.statuses[today]) state.statuses[today] = {};
       state.statuses[today][col] = st;
       save('statuses');
@@ -4152,13 +4188,26 @@ function openStatus(){
 function openSettings(){
   $('#settingsTheme').value = state.theme;
   $('#settingsFestive').checked = state.festive;
-  Object.keys(COLLABS).forEach(k => {
-    const input = $('#color-'+k);
+  const isAdmin = state.role === 'admin';
+  Object.keys(COLLABS).filter(k => k !== 'todos').forEach(k => {
+    const input = document.getElementById('color-'+k);
     if(input){
       const current = state.customColors[k] || getComputedStyle(document.documentElement).getPropertyValue(COLLABS[k].cssVar).trim();
       input.value = rgbToHex(current);
+      input.disabled = !isAdmin;
     }
   });
+  // esconder secao de cores para viewer
+  const colorsHeader = document.querySelector('#settingsModal h4');
+  if(colorsHeader){
+    colorsHeader.style.display = isAdmin ? '' : 'none';
+    let sib = colorsHeader.nextElementSibling;
+    while(sib && !sib.classList.contains('modal-actions')){
+      if(sib.classList.contains('form-row')) sib.style.display = isAdmin ? '' : 'none';
+      sib = sib.nextElementSibling;
+    }
+  }
+  $('#settingsReset').style.display = isAdmin ? '' : 'none';
   $('#settingsModal').classList.add('open');
 }
 
@@ -5324,18 +5373,24 @@ function bindEvents(){
 
   // settings save
   $('#settingsSave').addEventListener('click', () => {
+    // tema e festive todos podem ajustar (preferencias visuais pessoais ja persistem global, mas ok)
     state.theme = $('#settingsTheme').value;
     state.festive = $('#settingsFestive').checked;
-    Object.keys(COLLABS).forEach(k => {
-      const v = $('#color-'+k).value;
-      if(v){ state.customColors[k] = v; }
-    });
-    save('theme'); save('festive'); save('customColors');
+    save('theme'); save('festive');
+    // cores: so admin
+    if(state.role === 'admin'){
+      Object.keys(COLLABS).filter(k => k !== 'todos').forEach(k => {
+        const input = document.getElementById('color-' + k);
+        if(input && input.value){ state.customColors[k] = input.value; }
+      });
+      save('customColors');
+    }
     $('#settingsModal').classList.remove('open');
     toast('Preferências salvas');
     render();
   });
   $('#settingsReset').addEventListener('click', () => {
+    if(state.role !== 'admin'){ toast('Apenas a gestora pode resetar cores'); return; }
     state.customColors = {};
     ['--c-joao','--c-thayane','--c-lianda','--c-ravy'].forEach(v => document.documentElement.style.removeProperty(v));
     save('customColors');
