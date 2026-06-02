@@ -5376,6 +5376,10 @@ function bindEvents(){
   $('#logoutBtn').addEventListener('click', () => {
     logHistory('Fez logout');
     auth.signOut();
+    // desregistra do OneSignal (para de receber notificacoes neste dispositivo)
+    if(window.OneSignalDeferred) window.OneSignalDeferred.push(async function(OneSignal) {
+      try { await OneSignal.logout(); } catch(e) {}
+    });
     state.role = 'viewer';
     state.viewerAs = null;
     state.filterCollab = null;
