@@ -1,41 +1,47 @@
-# Setup Push Notifications (FCM)
+# Setup Push Notifications - 100% pelo Navegador
 
-Voce vai precisar de ~15 minutos para configurar. Siga em ordem:
+Todos os passos sao feitos no navegador, sem precisar instalar nada.
+Tempo total: ~20 minutos.
 
-## 1. Ativar Blaze Plan (gratis para uso pequeno)
+## Passo 1: Ativar Blaze Plan (gratis para uso pequeno)
 
-1. Acesse https://console.firebase.google.com
-2. Selecione o projeto `calendario-equipe-34d15`
-3. No canto inferior esquerdo, clique em **Spark** (plano atual)
-4. Clique em **Modify plan** > **Blaze (pay as you go)**
-5. Adicione um cartao de credito (obrigatorio pela politica do Google)
-6. **IMPORTANTE**: Configure um alerta de orcamento:
-   - Va em **Settings** > **Usage and billing** > **Details & settings**
-   - Clique em **Modify plan** > **Set budget alert**
-   - Coloque **R$ 5,00** como limite (na pratica nunca vai chegar la)
+1. Va em https://console.firebase.google.com
+2. Faca login com **alcinadadosti@gmail.com**
+3. Selecione o projeto **calendario-equipe**
+4. No canto inferior esquerdo da tela, voce vera **Spark** — clique
+5. Clique em **Modify plan** ou **Mudar plano**
+6. Selecione **Blaze (pay as you go)**
+7. Adicione um cartao de credito (politica do Google, NAO vai cobrar)
+8. Apos ativar, va em **Settings** > **Usage and billing** > **Details & settings**
+9. Clique em **Modify plan** > **Set budget alert**
+10. Coloque **R$ 5,00** como alerta (protecao extra)
 
-## 2. Gerar VAPID Key (chave publica para push)
+## Passo 2: Gerar VAPID Key
 
-1. No Firebase Console, va em **Project settings** (engrenagem no topo)
-2. Aba **Cloud Messaging**
-3. Role ate **Web configuration**
-4. Em **Web Push certificates**, clique em **Generate key pair**
-5. **Copie a chave gerada** (algo como `BHd...`)
+1. Ainda no Firebase Console, clique na **engrenagem** no topo (ao lado de "Project Overview")
+2. Va em **Project settings**
+3. Clique na aba **Cloud Messaging**
+4. Role ate **Web configuration**
+5. Em **Web Push certificates**, clique em **Generate key pair**
+6. Aparece uma chave longa tipo `BHd_xWv1...` — **copie ela inteira**
 
-## 3. Colocar a VAPID Key no codigo
+## Passo 3: Colar a VAPID Key no codigo (pelo GitHub)
 
-Abra `public/index.html` e procure por:
-```javascript
-const VAPID_KEY = 'COLE_AQUI_SUA_VAPID_KEY';
-```
+1. Acesse https://github.com/alcinadadosti-worspace/MarkCalendar
+2. Clique no arquivo **public/index.html**
+3. Clique no icone do **lapis** (canto superior direito) para editar
+4. Pressione **Ctrl+F** e procure por `COLE_AQUI_SUA_VAPID_KEY`
+5. Substitua pelo valor copiado do Passo 2
+6. Role ate o fim, escreva uma mensagem tipo "VAPID key" e clique **Commit changes**
+7. **Repita os mesmos passos** no arquivo `calendar.html`
 
-Substitua `COLE_AQUI_SUA_VAPID_KEY` pela chave que voce copiou.
+O Render vai fazer o deploy automatico em ~1 minuto.
 
-Faca o mesmo em `calendar.html`.
+## Passo 4: Atualizar Firestore Rules
 
-## 4. Atualizar regras do Firestore
-
-No Firebase Console > Firestore Database > Regras, substitua por:
+1. Firebase Console > **Firestore Database**
+2. Aba **Rules** (Regras)
+3. Substitua todo o conteudo por:
 
 ```
 rules_version = '2';
@@ -58,63 +64,79 @@ service cloud.firestore {
 }
 ```
 
-## 5. Instalar Firebase CLI (para deploy da Cloud Function)
+4. Clique **Publish** (Publicar)
 
-No seu computador, abra o terminal/PowerShell e rode:
+## Passo 5: Abrir o Cloud Shell (terminal no navegador)
+
+1. Acesse https://console.cloud.google.com
+2. Faca login com **alcinadadosti@gmail.com**
+3. Selecione o projeto **calendario-equipe** no topo
+4. No canto superior direito da pagina, clique no icone **>_** (Activate Cloud Shell)
+5. Espera abrir uma janela de terminal na parte inferior (demora ~30 segundos na primeira vez)
+6. Clique em **Continue** se aparecer alguma autorizacao
+
+## Passo 6: Baixar o projeto no Cloud Shell
+
+No terminal do Cloud Shell, cole estes comandos um de cada vez:
 
 ```
-npm install -g firebase-tools
-firebase login
+git clone https://github.com/alcinadadosti-worspace/MarkCalendar.git
+cd MarkCalendar
+ls
 ```
 
-Faca login com a mesma conta Google do projeto.
+Voce deve ver as pastas `functions`, `public`, etc.
 
-## 6. Deploy da Cloud Function
+## Passo 7: Deploy da Cloud Function
 
-Na pasta do projeto:
+Ainda no Cloud Shell:
 
 ```
-cd C:\Users\carlo\OneDrive\Documentos\CalendarioMarketing
-firebase use calendario-equipe-34d15
 cd functions
 npm install
 cd ..
+firebase use calendario-equipe-34d15
 firebase deploy --only functions
 ```
 
-Vai demorar uns 2-3 minutos na primeira vez. Quando terminar, voce vera algo como:
+O `npm install` demora uns 2 minutos. O `firebase deploy` demora mais 2-3 minutos.
+
+Quando terminar voce vera:
 ```
-✔ functions[onCalendarChange] Successful create operation.
+✔ Deploy complete!
+Function URL (onCalendarChange): https://...
 ```
 
-## 7. Pronto! Teste
+## Passo 8: Testar
 
-1. Abra o app, faca login
-2. O navegador vai pedir permissao para notificacoes — clique **Permitir**
-3. Em outro navegador (ou aba anonima), entre como outro colaborador
-4. Mande uma mensagem
-5. A notificacao deve aparecer mesmo se o primeiro navegador estiver fechado
+1. Abra o app no Render: https://markcalendar.onrender.com
+2. Faca login com qualquer PIN
+3. O navegador vai pedir permissao para notificacoes — clique **Permitir**
+4. Em outro navegador (aba anonima ou outro PC), entre com PIN diferente
+5. Mande uma mensagem para a primeira conta
+6. **Mesmo se voce fechar a primeira aba**, a notificacao vai aparecer
 
 ## Custos
 
 Para o time de 5 pessoas:
-- **FCM**: gratis (sempre)
-- **Cloud Functions**: ~3.000 invocacoes/mes (gratis ate 2 milhoes)
-- **Firestore**: ja usavam, dentro do gratis
+- FCM: **R$ 0,00** (gratis sempre)
+- Cloud Functions: **R$ 0,00** (~3.000/mes, limite 2 milhoes)
+- Firestore: ja gratis no plano atual
 
-Estimativa: **R$ 0,00/mes**
+## Problemas comuns
 
-## Resolucao de problemas
+**"Permission denied" no deploy:**
+Roda no Cloud Shell:
+```
+firebase logout
+firebase login --no-localhost
+```
+Cole o codigo que aparece no navegador.
 
-**Notificacoes nao aparecem:**
-- Verifique se autorizou no navegador (Configuracoes > Site > Notificacoes)
-- iOS: precisa instalar o PWA na tela inicial e ter iOS 16.4+
-- Veja o console do navegador (F12) por erros
+**Notificacoes nao chegam:**
+- Veja Functions > Logs no Firebase Console
+- iOS: precisa instalar como PWA e ter iOS 16.4+
+- Verifique se autorizou notificacoes nas Configuracoes do navegador
 
-**Erro de permissao no deploy:**
-- Confirme que voce e Owner do projeto Firebase
-- Tente `firebase login --reauth`
-
-**Cloud Function nao dispara:**
-- Verifique em Functions > Logs no Firebase Console
-- Confirme que as regras do Firestore foram publicadas
+**Cloud Shell desconecta:**
+- Reabra e rode `cd MarkCalendar` para voltar ao projeto
