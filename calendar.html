@@ -1773,7 +1773,7 @@ const CALENDAR_COLLECTION = 'calendarData';
 // 2. Crie um app web push
 // 3. Cole o App ID e a REST API Key abaixo
 const ONESIGNAL_APP_ID = '35c19788-11de-4457-a51f-2cf16e76d703';
-const ONESIGNAL_REST_KEY = 'COLE_SUA_REST_API_KEY_AQUI';
+const ONESIGNAL_REST_KEY = 'os_v2_app_gxazpcar3zcfpji7ftyw45wxao34p3fc3hkesbfetzr32tsthaphkzoyepa4uypziutikxv6owgmjlo4ng7veaesh7yc3ei2db63dry';
 
 function isOneSignalConfigured(){
   return ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'COLE_SEU_APP_ID_AQUI'
@@ -1822,11 +1822,14 @@ async function triggerPush(targetUserKey, title, body, opts = {}){
       chrome_web_icon: 'https://markcalendar.onrender.com/logo.png',
       chrome_web_badge: 'https://markcalendar.onrender.com/icon-192.svg'
     };
+    const authHeader = ONESIGNAL_REST_KEY.startsWith('os_v2_')
+      ? 'Key ' + ONESIGNAL_REST_KEY
+      : 'Basic ' + ONESIGNAL_REST_KEY;
     await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic ' + ONESIGNAL_REST_KEY
+        'Authorization': authHeader
       },
       body: JSON.stringify(payload)
     });
