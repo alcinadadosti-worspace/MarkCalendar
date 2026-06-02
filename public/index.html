@@ -1744,7 +1744,12 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+
+<!-- OneSignal Web Push -->
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+</script>
 
 <script>
 // ============ FIREBASE CONFIG ============
@@ -1763,50 +1768,69 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const CALENDAR_COLLECTION = 'calendarData';
 
-// VAPID key publica - voce vai gerar essa chave no Firebase Console
-// Cloud Messaging > Web Push certificates > Generate key pair
-const VAPID_KEY = 'COLE_AQUI_SUA_VAPID_KEY';
+// ============ ONESIGNAL CONFIG ============
+// 1. Crie conta gratis em https://onesignal.com
+// 2. Crie um app web push
+// 3. Cole o App ID e a REST API Key abaixo
+const ONESIGNAL_APP_ID = 'COLE_SEU_APP_ID_AQUI';
+const ONESIGNAL_REST_KEY = 'COLE_SUA_REST_API_KEY_AQUI';
 
-let messaging = null;
-try {
-  if(firebase.messaging.isSupported()) {
-    messaging = firebase.messaging();
-  }
-} catch(e) {
-  console.warn('Messaging not supported:', e);
+function isOneSignalConfigured(){
+  return ONESIGNAL_APP_ID && ONESIGNAL_APP_ID !== 'COLE_SEU_APP_ID_AQUI'
+      && ONESIGNAL_REST_KEY && ONESIGNAL_REST_KEY !== 'COLE_SUA_REST_API_KEY_AQUI';
 }
 
-async function registerFCMToken(userKey){
-  if(!messaging || !userKey) return;
-  if(VAPID_KEY === 'COLE_AQUI_SUA_VAPID_KEY') return; // ainda nao configurado
+function initOneSignal(){
+  if(!isOneSignalConfigured()) return;
+  window.OneSignalDeferred.push(async function(OneSignal) {
+    try {
+      await OneSignal.init({
+        appId: ONESIGNAL_APP_ID,
+        serviceWorkerPath: '/OneSignalSDKWorker.js',
+        notifyButton: { enable: false },
+        allowLocalhostAsSecureOrigin: true
+      });
+    } catch(e) { console.warn('OneSignal init failed', e); }
+  });
+}
 
+async function registerOneSignalUser(userKey){
+  if(!isOneSignalConfigured() || !userKey) return;
+  window.OneSignalDeferred.push(async function(OneSignal) {
+    try {
+      // pede permissao se ainda nao deu
+      if(OneSignal.Notifications.permission !== true){
+        await OneSignal.Notifications.requestPermission();
+      }
+      // associa o usuario interno ao OneSignal
+      await OneSignal.login(userKey);
+    } catch(e) { console.warn('OneSignal register failed', e); }
+  });
+}
+
+async function triggerPush(targetUserKey, title, body, opts = {}){
+  if(!isOneSignalConfigured()) return;
+  if(!targetUserKey || targetUserKey === (state.viewerAs || (state.role === 'admin' ? 'admin' : null))) return;
   try {
-    // pede permissao se ainda nao tem
-    if(Notification.permission === 'default'){
-      await Notification.requestPermission();
-    }
-    if(Notification.permission !== 'granted') return;
-
-    // registrar service worker para messaging
-    const swReg = await navigator.serviceWorker.ready;
-    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
-    if(token){
-      await db.collection('fcmTokens').doc(userKey).set({
-        tokens: firebase.firestore.FieldValue.arrayUnion(token),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
-      console.log('FCM token registrado');
-    }
-
-    // foreground: quando mensagem chega com app aberto
-    messaging.onMessage((payload) => {
-      const title = payload.notification?.title || 'Calendário';
-      const body = payload.notification?.body || '';
-      notify(title, body, payload.data?.tag);
+    const payload = {
+      app_id: ONESIGNAL_APP_ID,
+      include_aliases: { external_id: [targetUserKey] },
+      target_channel: 'push',
+      headings: { en: title, pt: title },
+      contents: { en: body, pt: body },
+      web_url: opts.url || 'https://markcalendar.onrender.com/',
+      chrome_web_icon: 'https://markcalendar.onrender.com/logo.png',
+      chrome_web_badge: 'https://markcalendar.onrender.com/icon-192.svg'
+    };
+    await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + ONESIGNAL_REST_KEY
+      },
+      body: JSON.stringify(payload)
     });
-  } catch(e) {
-    console.warn('FCM registration failed:', e);
-  }
+  } catch(e) { console.warn('Push failed:', e); }
 }
 
 const AUTH_USERS = {
@@ -3783,14 +3807,28 @@ function renderExistingEvents(){
       const ev = (state.events[activeDateKey]||[]).find(x=>x.id===id);
       if(!ev) return;
       ev.comments = ev.comments || [];
+      const who = state.role === 'admin' ? 'admin' : state.viewerAs;
       ev.comments.push({
         id: uid(),
-        who: state.role === 'admin' ? 'admin' : state.viewerAs,
+        who: who,
         text: txt,
         when: new Date().toISOString()
       });
       save('events');
       renderExistingEvents();
+      // pushes para @mencoes
+      const fromName = who === 'admin' ? ADMIN_USER.name : (COLLABS[who]?.name || who);
+      const mentions = txt.match(/@(\w+)/g) || [];
+      const notified = new Set();
+      mentions.forEach(m => {
+        const tag = m.slice(1).toLowerCase();
+        const target = Object.keys(COLLABS).find(k => k !== 'todos' && (k === tag || COLLABS[k].name.toLowerCase() === tag));
+        const fullTarget = target || (tag === 'suzana' || tag === ADMIN_USER.name.toLowerCase() ? 'admin' : null);
+        if(fullTarget && fullTarget !== who && !notified.has(fullTarget)){
+          notified.add(fullTarget);
+          triggerPush(fullTarget, `@ ${fromName} mencionou você`, txt.slice(0, 120));
+        }
+      });
     });
   });
   container.querySelectorAll('[data-comment-id]').forEach(input => {
@@ -4048,6 +4086,15 @@ function saveEvent(){
     const taskNames = uniqueCollabs.map(c=>COLLABS[c]?COLLABS[c].name:c);
     const logTarget = taskNames.length > 1 ? taskNames.join(', ') : taskNames[0];
     logHistory(`Criou "${title}" para ${logTarget}`);
+    // push para cada colaborador que recebeu tarefa
+    uniqueCollabs.forEach(c => {
+      if(c && c !== 'todos') triggerPush(c, '📋 Nova tarefa atribuída', `${title} em ${activeDateKey}`);
+    });
+    if(uniqueCollabs.includes('todos')){
+      Object.keys(COLLABS).filter(k => k !== 'todos').forEach(c => {
+        triggerPush(c, '📋 Novo evento da equipe', `${title} em ${activeDateKey}`);
+      });
+    }
     save('events');
     toast(`✓ "${title}" criado para ${logTarget}${rec && rec !== 'none' ? ' + recorrências' : ''}`);
   }
@@ -4715,6 +4762,8 @@ function submitMeetingRequest(){
   logHistory(`${COLLABS[state.viewerAs].name} convidou ${colleagues.map(c=>COLLABS[c].name).join(', ')} para reunião`);
   $('#meetingRequestModal').classList.remove('open');
   toast('Convite enviado!');
+  const fromName = COLLABS[state.viewerAs]?.name || state.viewerAs;
+  colleagues.forEach(c => triggerPush(c, '📅 Convite de reunião', `${fromName} quer marcar em ${$('#meetingDate').value}`));
 }
 
 let substituteEventId = null;
@@ -4758,6 +4807,8 @@ function confirmSubstitute(){
   save('requests');
   logHistory(`${COLLABS[state.viewerAs].name} pediu substituição para ${COLLABS[substituteTarget].name} em "${ev.title}"`);
   toast(`Pedido enviado para ${COLLABS[substituteTarget].name}`);
+  const fromName = COLLABS[state.viewerAs]?.name || state.viewerAs;
+  triggerPush(substituteTarget, '🔄 Pedido de substituição', `${fromName} pediu para cobrir "${ev.title}"`);
   closeSubstituteModal();
   renderExistingEvents();
   render();
@@ -5095,6 +5146,8 @@ function sendKudos(){
   $('#kudosText').value = '';
   renderKudosList();
   toast('Elogio enviado!');
+  const fromName = userKey === 'admin' ? ADMIN_USER.name : (COLLABS[userKey]?.name || userKey);
+  triggerPush(to, `⭐ Elogio de ${fromName}`, text.slice(0, 120));
 }
 
 // ============ MESSAGES ============
@@ -5225,6 +5278,8 @@ function sendMessage(){
   $('#msgInput').value = '';
   renderMsgChat();
   renderMsgContacts();
+  const fromName = userKey === 'admin' ? ADMIN_USER.name : (COLLABS[userKey]?.name || userKey);
+  triggerPush(activeChatContact, `💬 ${fromName}`, text.slice(0, 120));
 }
 function renderMessagesBadge(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
@@ -5516,7 +5571,7 @@ function bindEvents(){
         setTimeout(() => {
           requestNotificationPermission();
           const userKey = userInfo.role === 'admin' ? 'admin' : userInfo.collabKey;
-          registerFCMToken(userKey);
+          registerOneSignalUser(userKey);
         }, 2000);
       } else {
         auth.signOut();
@@ -5632,6 +5687,8 @@ function bindEvents(){
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(function(){});
 }
+// inicializar OneSignal
+try { initOneSignal(); } catch(e) {}
 let deferredInstall = null;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();

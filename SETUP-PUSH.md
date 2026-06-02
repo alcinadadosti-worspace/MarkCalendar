@@ -1,142 +1,114 @@
-# Setup Push Notifications - 100% pelo Navegador
+# Setup Push Notifications com OneSignal (100% gratis, sem cartao)
 
-Todos os passos sao feitos no navegador, sem precisar instalar nada.
-Tempo total: ~20 minutos.
+Tempo total: ~10 minutos. Tudo pelo navegador, nada para instalar.
 
-## Passo 1: Ativar Blaze Plan (gratis para uso pequeno)
+## Passo 1: Criar conta no OneSignal
 
-1. Va em https://console.firebase.google.com
-2. Faca login com **alcinadadosti@gmail.com**
-3. Selecione o projeto **calendario-equipe**
-4. No canto inferior esquerdo da tela, voce vera **Spark** — clique
-5. Clique em **Modify plan** ou **Mudar plano**
-6. Selecione **Blaze (pay as you go)**
-7. Adicione um cartao de credito (politica do Google, NAO vai cobrar)
-8. Apos ativar, va em **Settings** > **Usage and billing** > **Details & settings**
-9. Clique em **Modify plan** > **Set budget alert**
-10. Coloque **R$ 5,00** como alerta (protecao extra)
+1. Acesse https://onesignal.com/
+2. Clique em **Sign Up Free**
+3. Cadastre com seu email (gratis, sem cartao)
+4. Confirme o email
 
-## Passo 2: Gerar VAPID Key
+## Passo 2: Criar app web push
 
-1. Ainda no Firebase Console, clique na **engrenagem** no topo (ao lado de "Project Overview")
-2. Va em **Project settings**
-3. Clique na aba **Cloud Messaging**
-4. Role ate **Web configuration**
-5. Em **Web Push certificates**, clique em **Generate key pair**
-6. Aparece uma chave longa tipo `BHd_xWv1...` — **copie ela inteira**
+1. Apos logar, clique em **New App/Website**
+2. Da um nome: `Calendario da Equipe`
+3. Escolha **Web** como plataforma
+4. Clique **Next: Configure Your Platform**
+5. Selecione **Typical Site** (Custom Code)
+6. Em **Site Setup**:
+   - Site Name: `Calendario da Equipe`
+   - Site URL: `https://markcalendar.onrender.com`
+   - Auto Resubscribe: **ON**
+   - Default Icon URL: `https://markcalendar.onrender.com/logo.png`
+7. Clique **Save**
+8. Vai abrir uma tela com codigos — **NAO precisa copiar nada daqui ainda**, so feche
+9. Voltando ao dashboard, clique em **Settings** > **Keys & IDs**
 
-## Passo 3: Colar a VAPID Key no codigo (pelo GitHub)
+## Passo 3: Copiar as credenciais
+
+Na tela de Keys & IDs:
+- **OneSignal App ID** — copie esse valor
+- **REST API Key** — copie esse valor tambem (clique no olho para ver)
+
+## Passo 4: Colar no codigo (via GitHub)
 
 1. Acesse https://github.com/alcinadadosti-worspace/MarkCalendar
-2. Clique no arquivo **public/index.html**
-3. Clique no icone do **lapis** (canto superior direito) para editar
-4. Pressione **Ctrl+F** e procure por `COLE_AQUI_SUA_VAPID_KEY`
-5. Substitua pelo valor copiado do Passo 2
-6. Role ate o fim, escreva uma mensagem tipo "VAPID key" e clique **Commit changes**
-7. **Repita os mesmos passos** no arquivo `calendar.html`
+2. Abra o arquivo `public/index.html`
+3. Clique no lapis para editar
+4. Pressione **Ctrl+F** e procure por `COLE_SEU_APP_ID_AQUI`
+5. Substitua pelo OneSignal App ID
+6. Logo abaixo, substitua `COLE_SUA_REST_API_KEY_AQUI` pela REST API Key
+7. Role ate o fim, escreva "OneSignal config" e clique **Commit changes**
 
-O Render vai fazer o deploy automatico em ~1 minuto.
+Faca o mesmo no arquivo `calendar.html`.
 
-## Passo 4: Atualizar Firestore Rules
+## Passo 5: Subir o Service Worker do OneSignal
 
-1. Firebase Console > **Firestore Database**
-2. Aba **Rules** (Regras)
-3. Substitua todo o conteudo por:
+O OneSignal precisa de um arquivo especial no servidor. Vamos baixar e colocar:
 
+1. No GitHub, va em **public/**
+2. Clique em **Add file** > **Create new file**
+3. Nome do arquivo: `OneSignalSDKWorker.js`
+4. Conteudo:
 ```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /calendarData/{docId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-    match /authSetupDone/{docId} {
-      allow read, write: if true;
-    }
-    match /pinMap/{docId} {
-      allow read, write: if true;
-    }
-    match /fcmTokens/{userId} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
+importScripts('https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.sw.js');
 ```
+5. Commit changes
+6. Espere ~1 minuto para o Render fazer redeploy
 
-4. Clique **Publish** (Publicar)
+## Passo 6: Testar
 
-## Passo 5: Abrir o Cloud Shell (terminal no navegador)
+1. Abra https://markcalendar.onrender.com
+2. Faca login (qualquer PIN)
+3. O navegador vai pedir permissao para notificacoes — **Permitir**
+4. Abra outro navegador (anonima ou outro PC)
+5. Entre com outro colaborador
+6. **Feche o primeiro navegador completamente**
+7. Mande uma mensagem do segundo para o primeiro
+8. A notificacao deve aparecer no Windows/Mac/celular mesmo com o navegador fechado
 
-1. Acesse https://console.cloud.google.com
-2. Faca login com **alcinadadosti@gmail.com**
-3. Selecione o projeto **calendario-equipe** no topo
-4. No canto superior direito da pagina, clique no icone **>_** (Activate Cloud Shell)
-5. Espera abrir uma janela de terminal na parte inferior (demora ~30 segundos na primeira vez)
-6. Clique em **Continue** se aparecer alguma autorizacao
+## No celular
 
-## Passo 6: Baixar o projeto no Cloud Shell
+**Android:**
+1. Abra o app no Chrome
+2. Toque nos 3 pontos > **Adicionar a tela inicial**
+3. Abra pelo icone na tela inicial
+4. Faca login e autorize notificacoes
+5. Push funciona mesmo com app fechado
 
-No terminal do Cloud Shell, cole estes comandos um de cada vez:
+**iPhone (iOS 16.4+):**
+1. Abra no Safari
+2. Toque em compartilhar > **Adicionar a tela inicial**
+3. Abra pelo icone na tela inicial (importante!)
+4. Faca login e autorize
+5. Push funciona mesmo com app fechado
 
-```
-git clone https://github.com/alcinadadosti-worspace/MarkCalendar.git
-cd MarkCalendar
-ls
-```
+## Tipos de notificacao que serao enviadas
 
-Voce deve ver as pastas `functions`, `public`, etc.
-
-## Passo 7: Deploy da Cloud Function
-
-Ainda no Cloud Shell:
-
-```
-cd functions
-npm install
-cd ..
-firebase use calendario-equipe-34d15
-firebase deploy --only functions
-```
-
-O `npm install` demora uns 2 minutos. O `firebase deploy` demora mais 2-3 minutos.
-
-Quando terminar voce vera:
-```
-✔ Deploy complete!
-Function URL (onCalendarChange): https://...
-```
-
-## Passo 8: Testar
-
-1. Abra o app no Render: https://markcalendar.onrender.com
-2. Faca login com qualquer PIN
-3. O navegador vai pedir permissao para notificacoes — clique **Permitir**
-4. Em outro navegador (aba anonima ou outro PC), entre com PIN diferente
-5. Mande uma mensagem para a primeira conta
-6. **Mesmo se voce fechar a primeira aba**, a notificacao vai aparecer
+- 💬 Mensagem direta (quando alguem te manda mensagem)
+- ⭐ Elogio recebido (quando alguem te elogia)
+- @ Mencao em comentario (quando te marcam com @)
+- 📅 Convite de reuniao
+- 🔄 Pedido de substituicao
+- 📋 Nova tarefa atribuida (quando admin cria evento pra voce)
 
 ## Custos
 
-Para o time de 5 pessoas:
-- FCM: **R$ 0,00** (gratis sempre)
-- Cloud Functions: **R$ 0,00** (~3.000/mes, limite 2 milhoes)
-- Firestore: ja gratis no plano atual
+**R$ 0,00/mes** — sempre. OneSignal e gratis para ate 10.000 usuarios web push. Voces sao 5.
 
 ## Problemas comuns
 
-**"Permission denied" no deploy:**
-Roda no Cloud Shell:
-```
-firebase logout
-firebase login --no-localhost
-```
-Cole o codigo que aparece no navegador.
+**"Notificacoes nao chegam":**
+- Verifique se autorizou (Configuracoes do navegador > Site > Notificacoes)
+- iOS: SO funciona se instalou como PWA na tela inicial
+- Veja o painel do OneSignal > **Audience** > **All Users** se voce aparece la
 
-**Notificacoes nao chegam:**
-- Veja Functions > Logs no Firebase Console
-- iOS: precisa instalar como PWA e ter iOS 16.4+
-- Verifique se autorizou notificacoes nas Configuracoes do navegador
+**"REST API Key invalida":**
+- Confirme que copiou a REST API Key, NAO a User Auth Key
+- Sem espacos extras antes/depois
 
-**Cloud Shell desconecta:**
-- Reabra e rode `cd MarkCalendar` para voltar ao projeto
+**"OneSignal nao inicializa":**
+- Abra DevTools (F12) > Console
+- Procure por erros do OneSignal
+- Verifique se o OneSignalSDKWorker.js foi criado em public/
