@@ -4139,17 +4139,14 @@ function openStatus(){
   const wrap = $('#statusBody');
   const today = todayKey;
   const todayStatuses = state.statuses[today] || {};
-  const isAdmin = state.role === 'admin';
   const myKey = state.viewerAs;
 
-  let html = isAdmin
-    ? '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Defina o status de cada um para hoje:</p>'
-    : '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Apenas a gestora pode alterar o status da equipe. Você pode ver os status de todos abaixo:</p>';
+  let html = '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Cada colaborador define seu próprio status. Você só pode alterar o seu.</p>';
 
   Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
     const current = todayStatuses[k] || 'office';
-    // viewer so pode editar seu proprio status
-    const canEdit = isAdmin || k === myKey;
+    // apenas o proprio colaborador pode editar seu status
+    const canEdit = k === myKey;
     html += `
       <div style="margin-bottom:14px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -4172,8 +4169,8 @@ function openStatus(){
   $('#statusBody').querySelectorAll('[data-status]').forEach(b => {
     b.addEventListener('click', () => {
       const col = b.dataset.collab, st = b.dataset.status;
-      // defesa: revalidar permissao
-      if(state.role !== 'admin' && col !== state.viewerAs){ toast('Sem permissão'); return; }
+      // defesa: so o proprio colaborador pode mudar
+      if(col !== state.viewerAs){ toast('Apenas o próprio colaborador pode mudar seu status'); return; }
       if(!state.statuses[today]) state.statuses[today] = {};
       state.statuses[today][col] = st;
       save('statuses');
