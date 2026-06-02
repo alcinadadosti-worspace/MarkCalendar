@@ -1744,6 +1744,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 
 <script>
 // ============ FIREBASE CONFIG ============
@@ -1761,6 +1762,52 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 const CALENDAR_COLLECTION = 'calendarData';
+
+// VAPID key publica - voce vai gerar essa chave no Firebase Console
+// Cloud Messaging > Web Push certificates > Generate key pair
+const VAPID_KEY = 'COLE_AQUI_SUA_VAPID_KEY';
+
+let messaging = null;
+try {
+  if(firebase.messaging.isSupported()) {
+    messaging = firebase.messaging();
+  }
+} catch(e) {
+  console.warn('Messaging not supported:', e);
+}
+
+async function registerFCMToken(userKey){
+  if(!messaging || !userKey) return;
+  if(VAPID_KEY === 'COLE_AQUI_SUA_VAPID_KEY') return; // ainda nao configurado
+
+  try {
+    // pede permissao se ainda nao tem
+    if(Notification.permission === 'default'){
+      await Notification.requestPermission();
+    }
+    if(Notification.permission !== 'granted') return;
+
+    // registrar service worker para messaging
+    const swReg = await navigator.serviceWorker.ready;
+    const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+    if(token){
+      await db.collection('fcmTokens').doc(userKey).set({
+        tokens: firebase.firestore.FieldValue.arrayUnion(token),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log('FCM token registrado');
+    }
+
+    // foreground: quando mensagem chega com app aberto
+    messaging.onMessage((payload) => {
+      const title = payload.notification?.title || 'Calendário';
+      const body = payload.notification?.body || '';
+      notify(title, body, payload.data?.tag);
+    });
+  } catch(e) {
+    console.warn('FCM registration failed:', e);
+  }
+}
 
 const AUTH_USERS = {
   admin:   { email:'suzana.admin@equipe.cal',  role:'admin',  collabKey:null,    name:'Suzana' },
@@ -5466,7 +5513,11 @@ function bindEvents(){
         startRealtimeSync();
         render();
         initUserLocation();
-        setTimeout(requestNotificationPermission, 2000);
+        setTimeout(() => {
+          requestNotificationPermission();
+          const userKey = userInfo.role === 'admin' ? 'admin' : userInfo.collabKey;
+          registerFCMToken(userKey);
+        }, 2000);
       } else {
         auth.signOut();
         openLogin();

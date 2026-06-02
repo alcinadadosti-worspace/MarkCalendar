@@ -1,4 +1,4 @@
-var CACHE_NAME = 'cal-equipe-v3';
+var CACHE_NAME = 'cal-equipe-v4';
 var STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -36,20 +36,15 @@ self.addEventListener('activate', function(e) {
 
 self.addEventListener('fetch', function(e) {
   var url = new URL(e.request.url);
-  // Firebase/API calls: network only
-  if (url.hostname.includes('firestore') || url.hostname.includes('googleapis') || url.hostname.includes('open-meteo') || url.hostname.includes('gstatic')) {
+  if (url.hostname.includes('firestore') || url.hostname.includes('googleapis') || url.hostname.includes('open-meteo') || url.hostname.includes('gstatic') || url.hostname.includes('fcm.googleapis')) {
     return;
   }
-  // Static assets: cache first, then network
   e.respondWith(
     caches.match(e.request).then(function(cached) {
       if (cached) {
-        // Update cache in background
         fetch(e.request).then(function(res) {
           if (res.ok) {
-            caches.open(CACHE_NAME).then(function(cache) {
-              cache.put(e.request, res);
-            });
+            caches.open(CACHE_NAME).then(function(cache) { cache.put(e.request, res); });
           }
         }).catch(function() {});
         return cached;
@@ -57,12 +52,50 @@ self.addEventListener('fetch', function(e) {
       return fetch(e.request).then(function(res) {
         if (res.ok) {
           var clone = res.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(e.request, clone);
-          });
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(e.request, clone); });
         }
         return res;
       });
+    })
+  );
+});
+
+// ============ PUSH NOTIFICATIONS ============
+self.addEventListener('push', function(e) {
+  var data = {};
+  try { data = e.data.json(); } catch(err) { data = { title: 'Calendário', body: e.data ? e.data.text() : 'Nova atividade' }; }
+
+  var title = data.title || data.notification?.title || 'Calendário da Equipe';
+  var body = data.body || data.notification?.body || 'Nova atividade';
+  var icon = data.icon || data.notification?.icon || '/logo.png';
+  var tag = data.tag || data.notification?.tag || ('cal-' + Date.now());
+  var url = (data.data && data.data.url) || '/';
+
+  e.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      icon: icon,
+      badge: '/icon-192.svg',
+      tag: tag,
+      data: { url: url },
+      requireInteraction: false,
+      vibrate: [200, 100, 200]
+    })
+  );
+});
+
+self.addEventListener('notificationclick', function(e) {
+  e.notification.close();
+  var targetUrl = (e.notification.data && e.notification.data.url) || '/';
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
+      for (var i = 0; i < list.length; i++) {
+        var c = list[i];
+        if (c.url.includes(self.registration.scope) && 'focus' in c) {
+          return c.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });
