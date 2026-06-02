@@ -4118,12 +4118,27 @@ function openInsights(){
 
 // ============ HISTORY MODAL ============
 function openHistory(){
-  const wrap = $('#historyBody');
-  // filtrar apenas eventos e tarefas (sem login, logout, sessoes)
-  const EVENT_KEYWORDS = ['criou', 'editou', 'excluiu', 'moveu', 'concluiu', 'marcou', 'pediu', 'ofereceu', 'aprovou', 'negou', 'convidou', 'aceitou', 'recusou', 'reunião confirmada', 'solicitou'];
+  // filtrar apenas acoes de eventos/tarefas — regex que verifica padroes especificos
+  const EVENT_PATTERNS = [
+    /^criou\s+"/i,
+    /^editou\s+"/i,
+    /^excluiu\s+"/i,
+    /^moveu\s+"/i,
+    /concluiu\s+"/i,
+    /marcou\s+"[^"]+"\s+como/i,
+    /pediu\s+ajuda\s+em\s+"/i,
+    /ofereceu\s+ajuda\s+em\s+"/i,
+    /pediu\s+substituição/i,
+    /solicitou\s+troca\s+de\s+"/i,
+    /aprovou\s+(troca|reunião)/i,
+    /negou\s+(troca|reunião)/i,
+    /convidou\s+.+\s+para\s+reunião/i,
+    /(aceitou|recusou)\s+(reunião|substituir)/i,
+    /reunião\s+confirmada/i
+  ];
   const filtered = (state.history || []).filter(h => {
-    const action = (h.action || '').toLowerCase();
-    return EVENT_KEYWORDS.some(kw => action.includes(kw));
+    const action = h.action || '';
+    return EVENT_PATTERNS.some(re => re.test(action));
   });
   if(!filtered.length){
     wrap.innerHTML = '<div class="history-empty">Sem atividade de eventos ainda. Crie ou edite eventos pra ver o histórico aqui.</div>';
