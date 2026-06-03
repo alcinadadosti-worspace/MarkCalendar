@@ -2045,7 +2045,13 @@ state.current.setDate(1);
 
 // ============ STORAGE ============
 async function loadAll(){
-  const keys = ['events','statuses','history','customColors','birthdays','theme','festive','requests','notes','priorities','diary','blocks','reminders','kudos','messages'];
+  // tema e festive sao preferencias locais (per-device), nao sincronizam
+  const localTheme = localStorage.getItem('userTheme');
+  if(localTheme === 'light' || localTheme === 'dark') state.theme = localTheme;
+  const localFestive = localStorage.getItem('userFestive');
+  if(localFestive !== null) state.festive = localFestive === '1';
+
+  const keys = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary','blocks','reminders','kudos','messages'];
   for(const k of keys){
     try{
       const r = await window.storage.get(k);
@@ -2105,6 +2111,7 @@ function startRealtimeSync(){
     snapshot.docChanges().forEach(function(change){
       if(change.type === 'added' || change.type === 'modified'){
         var key = change.doc.id;
+        if(key === 'theme' || key === 'festive') return; // preferencias locais
         var val = change.doc.data().value;
         if(val && state.hasOwnProperty(key)){
           try{
@@ -5475,7 +5482,8 @@ function bindEvents(){
   // top icons
   $('#themeBtn').addEventListener('click', () => {
     state.theme = state.theme === 'light' ? 'dark' : 'light';
-    save('theme');
+    localStorage.setItem('userTheme', state.theme);
+    document.documentElement.setAttribute('data-theme', state.theme);
     render();
   });
   $('#insightsBtn').addEventListener('click', openInsights);
@@ -5533,10 +5541,12 @@ function bindEvents(){
 
   // settings save
   $('#settingsSave').addEventListener('click', () => {
-    // tema e festive todos podem ajustar (preferencias visuais pessoais ja persistem global, mas ok)
+    // tema e festive sao preferencias locais (per-device)
     state.theme = $('#settingsTheme').value;
     state.festive = $('#settingsFestive').checked;
-    save('theme'); save('festive');
+    localStorage.setItem('userTheme', state.theme);
+    localStorage.setItem('userFestive', state.festive ? '1' : '0');
+    document.documentElement.setAttribute('data-theme', state.theme);
     // cores: so admin
     if(state.role === 'admin'){
       Object.keys(COLLABS).filter(k => k !== 'todos').forEach(k => {
