@@ -436,6 +436,22 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .day-marks .bday{font-size:11px}
 .day-note-mark{font-size:12px;line-height:1;cursor:help}
 
+/* preview da nota no topo da celula (apos o header) */
+.day-note-preview{
+  display:flex;align-items:flex-start;gap:3px;
+  background:#FFF8DC;border:1px solid #DAA520;border-radius:4px;
+  padding:2px 5px;margin-top:4px;font-size:9.5px;line-height:1.25;
+  color:#5C4A00;font-family:'Fraunces',serif;font-style:italic;
+  overflow:hidden;flex-shrink:0;
+}
+[data-theme="dark"] .day-note-preview{background:#3A2F00;border-color:#8B7500;color:#F5E6A8}
+.day-note-preview-ico{font-size:9px;flex-shrink:0}
+.day-note-preview-text{
+  flex:1;min-width:0;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  word-break:break-word;
+}
+
 .events{margin-top:auto;display:flex;flex-direction:column;gap:2px;width:100%;min-width:0}
 .event{
   font-size:10px;font-weight:500;padding:2px 5px;
@@ -3005,15 +3021,28 @@ function renderMonth(){
     if(holiday) marks.innerHTML += `<span class="holiday-dot" title="${escapeHtml(holiday)}">feriado</span>`;
     if(bdayCol && !muted) marks.innerHTML += `<span class="bday" title="Aniversário de ${COLLABS[bdayCol].name}">🎂</span>`;
     const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
+    let notePreviewText = '';
+    let notePreviewIcon = '';
     if(noteUser && state.notes[key] && state.notes[key][noteUser]){
       const n = state.notes[key][noteUser];
       const nText = typeof n === 'string' ? n : (n.text || '');
       const nIcon = typeof n === 'string' ? '📝' : (n.icon || '📝');
       const preview = escapeHtml(nText.slice(0, 60));
       marks.innerHTML += `<span class="day-note-mark" title="${preview}">${nIcon}</span>`;
+      notePreviewText = nText;
+      notePreviewIcon = nIcon;
     }
     header.appendChild(marks);
     cell.appendChild(header);
+
+    // preview da nota dentro da celula
+    if(notePreviewText && !muted){
+      const np = document.createElement('div');
+      np.className = 'day-note-preview';
+      np.innerHTML = `<span class="day-note-preview-ico">${notePreviewIcon}</span><span class="day-note-preview-text">${escapeHtml(notePreviewText)}</span>`;
+      np.title = notePreviewText;
+      cell.appendChild(np);
+    }
 
     // events
     const evWrap = document.createElement('div');
