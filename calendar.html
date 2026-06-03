@@ -4112,7 +4112,7 @@ function saveEvent(){
   }
 
   resetForm();
-  renderExistingEvents();
+  closeModal();
   render();
 }
 
@@ -4724,6 +4724,7 @@ function savePersonalNote(){
   if(Object.keys(state.notes[key]).length === 0) delete state.notes[key];
   save('notes');
   toast('Nota salva');
+  closeModal();
   render();
 }
 function deletePersonalNote(){
@@ -4736,6 +4737,7 @@ function deletePersonalNote(){
   $('#personalNoteText').value = '';
   $('#deleteNoteBtn').style.display = 'none';
   toast('Nota excluída');
+  closeModal();
   render();
 }
 
