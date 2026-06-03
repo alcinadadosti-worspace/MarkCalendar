@@ -2104,6 +2104,17 @@ function updateOnlineStatus(online){
   }
 }
 
+// batch de renders: se varios saves chegarem em sequencia, renderiza so 1 vez
+let renderQueued = false;
+function scheduleRender(){
+  if(renderQueued) return;
+  renderQueued = true;
+  requestAnimationFrame(function(){
+    renderQueued = false;
+    render();
+  });
+}
+
 function startRealtimeSync(){
   db.collection(CALENDAR_COLLECTION).onSnapshot(function(snapshot){
     if(localSaveCount > 0) return;
@@ -2127,7 +2138,7 @@ function startRealtimeSync(){
         }
       }
     });
-    if(changed) render();
+    if(changed) scheduleRender();
   });
 }
 
@@ -2956,7 +2967,9 @@ function renderMonth(){
   const daysInMonth = new Date(y,m+1,0).getDate();
   const daysPrev = new Date(y,m,0).getDate();
   const cal = $('#monthGrid');
-  cal.innerHTML = '';
+  // construir celulas em um fragment off-screen, depois trocar de uma vez
+  // (evita o flash de tela vazia entre innerHTML='' e o append)
+  const frag = document.createDocumentFragment();
 
   const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
 
@@ -3128,8 +3141,10 @@ function renderMonth(){
         });
       }
     }
-    cal.appendChild(cell);
+    frag.appendChild(cell);
   }
+  // troca atomica: substitui todos os filhos de uma vez
+  cal.replaceChildren(frag);
 }
 
 // ============ WEEK VIEW ============
