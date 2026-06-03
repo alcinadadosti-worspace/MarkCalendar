@@ -623,20 +623,20 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
 /* ============ ANIMATIONS ============ */
 
-/* staggered cell entrance */
-.calendar .cell{animation:cellIn .3s ease both}
+/* staggered cell entrance — so quando o usuario navega entre meses/visoes, nao em atualizacoes do Firestore */
+:root:not(.no-anim) .calendar .cell{animation:cellIn .3s ease both}
 @keyframes cellIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
-.calendar .cell:nth-child(1){animation-delay:.01s}.calendar .cell:nth-child(2){animation-delay:.02s}
-.calendar .cell:nth-child(3){animation-delay:.03s}.calendar .cell:nth-child(4){animation-delay:.04s}
-.calendar .cell:nth-child(5){animation-delay:.05s}.calendar .cell:nth-child(6){animation-delay:.06s}
-.calendar .cell:nth-child(7){animation-delay:.07s}.calendar .cell:nth-child(8){animation-delay:.08s}
-.calendar .cell:nth-child(9){animation-delay:.09s}.calendar .cell:nth-child(10){animation-delay:.10s}
-.calendar .cell:nth-child(11){animation-delay:.11s}.calendar .cell:nth-child(12){animation-delay:.12s}
-.calendar .cell:nth-child(13){animation-delay:.13s}.calendar .cell:nth-child(14){animation-delay:.14s}
-.calendar .cell:nth-child(n+15){animation-delay:.15s}
+:root:not(.no-anim) .calendar .cell:nth-child(1){animation-delay:.01s}:root:not(.no-anim) .calendar .cell:nth-child(2){animation-delay:.02s}
+:root:not(.no-anim) .calendar .cell:nth-child(3){animation-delay:.03s}:root:not(.no-anim) .calendar .cell:nth-child(4){animation-delay:.04s}
+:root:not(.no-anim) .calendar .cell:nth-child(5){animation-delay:.05s}:root:not(.no-anim) .calendar .cell:nth-child(6){animation-delay:.06s}
+:root:not(.no-anim) .calendar .cell:nth-child(7){animation-delay:.07s}:root:not(.no-anim) .calendar .cell:nth-child(8){animation-delay:.08s}
+:root:not(.no-anim) .calendar .cell:nth-child(9){animation-delay:.09s}:root:not(.no-anim) .calendar .cell:nth-child(10){animation-delay:.10s}
+:root:not(.no-anim) .calendar .cell:nth-child(11){animation-delay:.11s}:root:not(.no-anim) .calendar .cell:nth-child(12){animation-delay:.12s}
+:root:not(.no-anim) .calendar .cell:nth-child(13){animation-delay:.13s}:root:not(.no-anim) .calendar .cell:nth-child(14){animation-delay:.14s}
+:root:not(.no-anim) .calendar .cell:nth-child(n+15){animation-delay:.15s}
 
-/* event cards pop in */
-.event{animation:eventPop .2s ease both}
+/* event cards pop in — so na navegacao */
+:root:not(.no-anim) .event{animation:eventPop .2s ease both}
 @keyframes eventPop{from{opacity:0;transform:translateX(-4px)}to{opacity:1;transform:translateX(0)}}
 
 /* existing events in modal slide in */
@@ -2371,9 +2371,16 @@ function isBirthday(date){
 function eventCount(){ return Object.values(state.events).reduce((a,b)=>a+b.length, 0); }
 
 // ============ RENDER PRINCIPAL ============
+let lastRenderKey = null;
 function render(){
   // tema
   document.documentElement.setAttribute('data-theme', state.theme);
+
+  // detectar se eh navegacao (animar) ou atualizacao de dados (sem animacao)
+  const currentKey = state.view + '|' + state.current.getFullYear() + '|' + state.current.getMonth() + '|' + (state.viewMode || 'mine') + '|' + (state.filterCollab || '');
+  const isNavigation = lastRenderKey !== currentKey;
+  lastRenderKey = currentKey;
+  document.documentElement.classList.toggle('no-anim', !isNavigation);
 
   // aplicar cores custom
   Object.entries(state.customColors).forEach(([col, c]) => {
