@@ -445,6 +445,16 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   overflow:hidden;flex-shrink:0;
 }
 [data-theme="dark"] .day-note-preview{background:#3A2F00;border-color:#8B7500;color:#F5E6A8}
+
+/* Prioridade */
+.priority-chip{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;line-height:1.3;vertical-align:middle;flex-shrink:0}
+.priority-chip.high{background:#FFE0B2;color:#E65100;border:1px solid #E65100}
+.priority-chip.urgent{background:#EF5350;color:#FFFFFF;border:1px solid #B71C1C;animation:priorityPulse 2s ease infinite}
+@keyframes priorityPulse{0%,100%{opacity:1}50%{opacity:0.65}}
+[data-theme="dark"] .priority-chip.high{background:#5D2C00;color:#FFCC80;border-color:#FFCC80}
+[data-theme="dark"] .priority-chip.urgent{background:#B71C1C;color:#FFFFFF;border-color:#FFCDD2}
+.event .priority-chip{font-size:8px;padding:0 3px;letter-spacing:0;border-width:1px;line-height:1.4}
+.week-event .priority-chip{font-size:8px;padding:0 3px;letter-spacing:0;border-width:1px;line-height:1.4}
 .day-note-preview-ico{font-size:9px;flex-shrink:0}
 .day-note-preview-text{
   flex:1;min-width:0;overflow:hidden;
@@ -1345,13 +1355,18 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div id="taskAssignWrap" class="form-group">
         <label>Equipe & Tarefas</label>
         <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Selecione um colaborador, escolha ou digite a função e clique em adicionar.</p>
-        <div style="margin-bottom:8px">
-          <select id="taskCollabSelect" style="width:100%;padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <select id="taskCollabSelect" style="padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
             <option value="joao">João</option>
             <option value="thayane">Thayane</option>
             <option value="lianda">Lianda</option>
             <option value="ravy">Ravy</option>
             <option value="todos">★ Todos (equipe inteira)</option>
+          </select>
+          <select id="taskPrioritySelect" style="padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
+            <option value="normal">Normal</option>
+            <option value="high">🟠 Alta</option>
+            <option value="urgent">🔴 Urgente</option>
           </select>
         </div>
         <div class="task-quick-picker" id="taskQuickPicker">
@@ -1429,6 +1444,15 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div class="form-group">
         <label>Descrição / notas</label>
         <textarea id="eventDesc" placeholder="Detalhes adicionais..." maxlength="300"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Prioridade do evento</label>
+        <select id="eventPriority">
+          <option value="normal">Normal</option>
+          <option value="high">🟠 Alta</option>
+          <option value="urgent">🔴 Urgente</option>
+        </select>
       </div>
 
       <div style="display:flex;gap:18px;flex-wrap:wrap">
@@ -2259,6 +2283,11 @@ function canSeeEvent(ev){
     return !!me && ev.attendees.includes(me);
   }
   return true;
+}
+function priorityChip(p){
+  if(p === 'high') return '<span class="priority-chip high" title="Prioridade alta">Alta</span>';
+  if(p === 'urgent') return '<span class="priority-chip urgent" title="Prioridade urgente">Urgente</span>';
+  return '';
 }
 function evFullyDone(ev){
   if(ev.tasks && ev.tasks.length){
@@ -3108,7 +3137,8 @@ function renderMonth(){
         else if(r === 'no') rsvpBit = '<span style="margin-left:auto;font-size:9px" title="Recusado">❌</span>';
       }
       const taskBadge = (ev.tasks && ev.tasks.length) ? `<span class="ev-task-badge" title="${ev.tasks.length} tarefa(s)">${ev.tasks.length}</span>` : '';
-      eEl.innerHTML = `${timeBit}<span class="ico">${type.ico}</span><span class="ev-title">${escapeHtml(ev.title)}</span>${taskBadge}${rsvpBit}`;
+      const prBit = priorityChip(ev.priority);
+      eEl.innerHTML = `${timeBit}<span class="ico">${type.ico}</span><span class="ev-title">${escapeHtml(ev.title)}</span>${prBit}${taskBadge}${rsvpBit}`;
       if(state.role === 'admin'){
         eEl.draggable = true;
         eEl.dataset.eventId = ev.id;
@@ -3252,6 +3282,7 @@ function renderWeek(){
       we.innerHTML = `
         <span class="we-time">${type.ico} ${ev.startTime||''}${ev.endTime?' – '+ev.endTime:''}</span>
         <span class="we-title">${escapeHtml(ev.title)}</span>
+        ${priorityChip(ev.priority)}
       `;
       we.addEventListener('click', e => { e.stopPropagation(); openEventDetail(key, ev.id); });
       col.appendChild(we);
@@ -3346,6 +3377,7 @@ function renderDay(){
     we.innerHTML = `
       <span class="we-time">${type.ico} ${ev.startTime||''}${ev.endTime?' – '+ev.endTime:''} · ${c.name}</span>
       <span class="we-title">${escapeHtml(ev.title)}</span>
+      ${priorityChip(ev.priority)}
     `;
     we.addEventListener('click', e => { e.stopPropagation(); openEventDetail(key, ev.id); });
     col.appendChild(we);
@@ -3454,6 +3486,8 @@ function resetForm(){
   $('#customRecurWrap').style.display = 'none';
   $('#eventPinned').checked = false;
   $('#eventPrivate').checked = false;
+  if($('#eventPriority')) $('#eventPriority').value = 'normal';
+  if($('#taskPrioritySelect')) $('#taskPrioritySelect').value = 'normal';
   formSelectedType = 'reuniao';
   formTasks = [];
   updatePickerSelections();
@@ -3474,8 +3508,12 @@ function fillFormFor(ev){
   $('#eventRecurring').value = ev.recurring || 'none';
   $('#eventPinned').checked = !!ev.pinned;
   $('#eventPrivate').checked = !!ev.private;
+  if($('#eventPriority')) $('#eventPriority').value = ev.priority || 'normal';
   formSelectedType = ev.type || 'reuniao';
-  formTasks = (ev.tasks || []).map(t => typeof t === 'string' ? {id:uid(), collab:ev.collab, text:t, done:false} : {...t, id: t.id || uid()});
+  formTasks = (ev.tasks || []).map(t => typeof t === 'string'
+    ? {id:uid(), collab:ev.collab, text:t, done:false, priority:'normal'}
+    : {...t, id: t.id || uid(), priority: t.priority || 'normal'}
+  );
   updatePickerSelections();
   renderTaskList();
   $('#saveBtn').textContent = 'Salvar alterações';
@@ -3528,6 +3566,7 @@ function renderExistingEvents(){
     let recurChip = ev.recurring && ev.recurring !== 'none' ? `<span class="chip">↻ ${ev.recurring}</span>` : '';
     let pinChip = ev.pinned ? `<span class="chip">📌 fixado</span>` : '';
     let privChip = ev.private ? `<span class="chip">🔒 privado</span>` : '';
+    let prioChip = priorityChip(ev.priority);
     let conflictChip = isConflict ? `<span class="chip" style="background:#FFE0E0;color:var(--danger);border-color:var(--danger)">⚠ conflito</span>` : '';
 
     let linkLine = '';
@@ -3570,6 +3609,7 @@ function renderExistingEvents(){
           tasksLine += `<div class="task-check${task.done?' done':''}${!canCheck?' locked':''}">
             <input type="checkbox" data-task-ev="${ev.id}" data-task-id="${task.id}" ${task.done?'checked':''}${!canCheck?' disabled':''}>
             <span class="task-label">${escapeHtml(task.text)}</span>
+            ${priorityChip(task.priority)}
           </div>`;
         });
         tasksLine += '</div>';
@@ -3708,7 +3748,7 @@ function renderExistingEvents(){
       <div class="ee-meta">
         <span class="chip">${c.name}</span>
         <span class="chip">${type.label}</span>
-        ${timeChip}${recurChip}${pinChip}${privChip}${conflictChip}
+        ${timeChip}${recurChip}${pinChip}${privChip}${prioChip}${conflictChip}
       </div>
       ${locLine}
       ${descLine}
@@ -4103,7 +4143,8 @@ function saveEvent(){
     ev.recurring = $('#eventRecurring').value;
     ev.pinned = $('#eventPinned').checked;
     ev.private = $('#eventPrivate').checked;
-    ev.tasks = formTasks.map(t => ({id:t.id||uid(), collab:t.collab, text:t.text, done:t.done||false}));
+    ev.priority = $('#eventPriority') ? $('#eventPriority').value : 'normal';
+    ev.tasks = formTasks.map(t => ({id:t.id||uid(), collab:t.collab, text:t.text, done:t.done||false, priority:t.priority||'normal'}));
     logHistory(`Editou "${oldTitle}" → "${title}"`);
     save('events');
     toast('Evento atualizado');
@@ -4121,10 +4162,11 @@ function saveEvent(){
       recurring: $('#eventRecurring').value,
       pinned: $('#eventPinned').checked,
       private: $('#eventPrivate').checked,
+      priority: $('#eventPriority') ? $('#eventPriority').value : 'normal',
       createdAt: new Date().toISOString(),
       rsvp: {},
       comments: [],
-      tasks: formTasks.length ? formTasks.map(t => ({id:uid(), collab:t.collab, text:t.text, done:false})) : []
+      tasks: formTasks.length ? formTasks.map(t => ({id:uid(), collab:t.collab, text:t.text, done:false, priority:t.priority||'normal'})) : []
     };
     if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
     state.events[activeDateKey].push(newEv);
@@ -4580,6 +4622,7 @@ function renderTaskList(){
     return `<div class="task-item">
       ${photo}<strong style="font-size:11px;min-width:60px">${name}</strong>
       <span class="task-text">${escapeHtml(t.text)}</span>
+      ${priorityChip(t.priority)}
       <button class="task-remove" data-task-idx="${i}" title="Remover">&times;</button>
     </div>`;
   }).join('');
@@ -4592,10 +4635,11 @@ function renderTaskList(){
 }
 function addTaskAssign(){
   const collab = $('#taskCollabSelect').value;
+  const priority = $('#taskPrioritySelect') ? $('#taskPrioritySelect').value : 'normal';
   const input = $('#taskAssignInput');
   const text = input.value.trim();
   if(!text){ input.focus(); return; }
-  formTasks.push({ id:uid(), collab, text, done:false });
+  formTasks.push({ id:uid(), collab, text, done:false, priority });
   input.value = '';
   renderTaskList();
   input.focus();
@@ -5586,11 +5630,12 @@ function bindEvents(){
   $('#taskQuickPicker').addEventListener('click', e => {
     const btn = e.target.closest('.task-quick'); if(!btn) return;
     const collab = $('#taskCollabSelect').value;
+    const priority = $('#taskPrioritySelect') ? $('#taskPrioritySelect').value : 'normal';
     if(btn.dataset.quick === '__custom'){
       $('#taskAssignInput').focus();
       return;
     }
-    formTasks.push({ id:uid(), collab, text: btn.dataset.quick, done: false });
+    formTasks.push({ id:uid(), collab, text: btn.dataset.quick, done: false, priority });
     renderTaskList();
   });
   $('#deleteNoteBtn').addEventListener('click', deletePersonalNote);
