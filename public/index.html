@@ -1729,12 +1729,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <button class="btn" id="settingsReset">Resetar cores</button>
       <button class="btn primary" id="settingsSave">Salvar</button>
     </div>
-
-    <div id="settingsWipeWrap" style="display:none;margin-top:24px;padding-top:18px;border-top:1.5px dashed var(--ink-soft)">
-      <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0 0 6px;letter-spacing:-0.01em;color:#B91C1C">⚠️ Zona perigosa</h4>
-      <p style="font-size:12px;color:var(--ink-soft);margin-bottom:10px;line-height:1.4">Apaga todos os eventos, notas, mensagens, elogios, diario, historico, status e solicitacoes. Mantem cores, tema e aniversarios.</p>
-      <button class="btn" id="settingsWipe" style="background:#FEE2E2;border-color:#B91C1C;color:#B91C1C;width:100%">Apagar dados de teste</button>
-    </div>
   </div>
 </div>
 
@@ -4369,7 +4363,6 @@ function openSettings(){
     }
   }
   $('#settingsReset').style.display = isAdmin ? '' : 'none';
-  $('#settingsWipeWrap').style.display = isAdmin ? '' : 'none';
   $('#settingsModal').classList.add('open');
 }
 
@@ -5567,27 +5560,6 @@ function bindEvents(){
     save('customColors');
     toast('Cores resetadas');
     openSettings();
-    render();
-  });
-
-  $('#settingsWipe').addEventListener('click', () => {
-    if(state.role !== 'admin'){ toast('Apenas a gestora'); return; }
-    if(!confirm('APAGAR todos os dados de teste?\n\nEventos, notas, mensagens, elogios, diario, historico, status e solicitacoes serao apagados PERMANENTEMENTE.\n\nMantem: cores, tema, aniversarios.')) return;
-    if(!confirm('Tem certeza absoluta? Esta acao nao pode ser desfeita.')) return;
-    state.events = {};
-    state.statuses = {};
-    state.history = [];
-    state.requests = [];
-    state.notes = {};
-    state.priorities = {};
-    state.diary = {};
-    state.blocks = {};
-    state.reminders = {};
-    state.kudos = [];
-    state.messages = [];
-    ['events','statuses','history','requests','notes','priorities','diary','blocks','reminders','kudos','messages'].forEach(k => save(k));
-    $('#settingsModal').classList.remove('open');
-    toast('Dados apagados — app pronto para producao');
     render();
   });
 
