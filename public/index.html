@@ -2247,7 +2247,19 @@ function detectAndNotify(key, oldVal, newVal){
 
 // ============ HELPERS ============
 const $ = s => document.querySelector(s);
-function evVisibleTo(ev, who){ return ev.collab === who || ev.collab === 'todos' || (ev.tasks && ev.tasks.some(t => t.collab === who)); }
+function evVisibleTo(ev, who){
+  // reuniao privada (criada via convite): so participantes veem
+  if(ev.type === 'reuniao' && Array.isArray(ev.attendees)) return ev.attendees.includes(who);
+  return ev.collab === who || ev.collab === 'todos' || (ev.tasks && ev.tasks.some(t => t.collab === who));
+}
+// reunioes privadas: so quem criou e os convidados aceitos podem ver, em qualquer role
+function canSeeEvent(ev){
+  if(ev.type === 'reuniao' && Array.isArray(ev.attendees)){
+    const me = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+    return !!me && ev.attendees.includes(me);
+  }
+  return true;
+}
 function evFullyDone(ev){
   if(ev.tasks && ev.tasks.length){
     return ev.tasks.every(t => t && typeof t === 'object' && t.done === true);
@@ -2713,7 +2725,7 @@ function renderSidebar(){
   // meeting request button + invites + my day + msgs + kudos
   const loggedInAny = state.viewerAs || state.role === 'admin';
   const mrBtn = $('#requestMeetingBtn');
-  if(mrBtn) mrBtn.style.display = state.viewerAs ? '' : 'none';
+  if(mrBtn) mrBtn.style.display = (state.viewerAs || state.role === 'admin') ? '' : 'none';
   const myDayBtn = $('#myDayBtn');
   if(myDayBtn) myDayBtn.style.display = state.viewerAs ? '' : 'none';
   // mensagens, kudos e diario disponivel para admin tambem
@@ -2726,19 +2738,20 @@ function renderSidebar(){
   renderMessagesBadge();
   renderKudosBadge();
   const invWrap = $('#meetingInvites');
-  if(invWrap && state.viewerAs){
+  const meKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+  if(invWrap && meKey){
     const myInvites = (state.requests||[]).filter(r =>
-      r.type === 'meeting' && r.status === 'pending' && r.responses && r.responses[state.viewerAs] === 'pending'
+      r.type === 'meeting' && r.status === 'pending' && r.responses && r.responses[meKey] === 'pending'
     );
     const mySubs = (state.requests||[]).filter(r =>
-      r.type === 'substitute' && r.status === 'pending' && r.target === state.viewerAs
+      r.type === 'substitute' && r.status === 'pending' && r.target === meKey
     );
     let html = '';
     if(myInvites.length){
       html += '<h2 class="panel-title" style="font-size:14px;margin-top:12px">📬 Convites de reunião</h2>' +
         myInvites.map(r => {
-          const from = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
-          const photo = COLLABS[r.who] ? COLLABS[r.who].photo : '';
+          const from = r.who === 'admin' ? ADMIN_USER.name : (COLLABS[r.who] ? COLLABS[r.who].name : r.who);
+          const photo = r.who === 'admin' ? ADMIN_USER.photo : (COLLABS[r.who] ? COLLABS[r.who].photo : '');
           const photoHtml = photo ? `<img src="${photo}" style="width:20px;height:20px;border-radius:50%;object-fit:cover">` : '';
           return `<div class="request-card pending" style="font-size:12px">
             <div style="display:flex;align-items:center;gap:6px">${photoHtml}<strong>${from}</strong> te convidou</div>
@@ -3071,7 +3084,7 @@ function renderMonth(){
     // events
     const evWrap = document.createElement('div');
     evWrap.className = 'events';
-    let dayEvents = state.events[key] || [];
+    let dayEvents = (state.events[key] || []).filter(canSeeEvent);
     if(state.showOnlyMine && state.viewerAs){
       dayEvents = dayEvents.filter(e => evVisibleTo(e, state.viewerAs));
     }
@@ -3216,7 +3229,7 @@ function renderWeek(){
       col.appendChild(r);
     }
     // events
-    let dayEvents = (state.events[key]||[]).slice();
+    let dayEvents = (state.events[key]||[]).filter(canSeeEvent);
     if(state.showOnlyMine && state.viewerAs){
       dayEvents = dayEvents.filter(ev => evVisibleTo(ev, state.viewerAs));
     }
@@ -3314,7 +3327,7 @@ function renderDay(){
     r.className = 'hour-line';
     col.appendChild(r);
   }
-  let dayEvents = (state.events[key]||[]).slice();
+  let dayEvents = (state.events[key]||[]).filter(canSeeEvent);
   if(state.showOnlyMine && state.viewerAs){
     dayEvents = dayEvents.filter(ev => evVisibleTo(ev, state.viewerAs));
   }
@@ -3475,7 +3488,7 @@ function updatePickerSelections(){
 
 function renderExistingEvents(){
   const wrap = $('#existingEventsWrap');
-  let list = state.events[activeDateKey] || [];
+  let list = (state.events[activeDateKey] || []).filter(canSeeEvent);
   // privacy: viewer só vê privados se for o dono
   if(state.role === 'viewer'){
     list = list.filter(e => !e.private || evVisibleTo(e, state.viewerAs));
@@ -4596,6 +4609,7 @@ function renderSearch(query){
   const results = [];
   for(const [dateKey, evts] of Object.entries(state.events)){
     for(const ev of evts){
+      if(!canSeeEvent(ev)) continue;
       if(state.role === 'viewer' && state.viewerAs && !evVisibleTo(ev, state.viewerAs)) continue;
       const c = COLLABS[ev.collab];
       const type = EVENT_TYPES[ev.type || 'outro'];
@@ -4672,8 +4686,8 @@ function openRequestsModal(){
   let html = '';
   if(!pending.length && !resolved.length){ html = '<p style="text-align:center;color:var(--ink-faint);font-style:italic">Nenhuma solicitação.</p>'; }
   pending.forEach(r => {
-    const who = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
-    const photo = COLLABS[r.who] ? COLLABS[r.who].photo : '';
+    const who = r.who === 'admin' ? ADMIN_USER.name : (COLLABS[r.who] ? COLLABS[r.who].name : r.who);
+    const photo = r.who === 'admin' ? ADMIN_USER.photo : (COLLABS[r.who] ? COLLABS[r.who].photo : '');
     const photoHtml = photo ? `<img src="${photo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover">` : '';
     if(r.type === 'date-change'){
       const ev = Object.values(state.events).flat().find(e=>e.id===r.eventId);
@@ -4688,12 +4702,12 @@ function openRequestsModal(){
         </div>
       </div>`;
     } else if(r.type === 'meeting'){
-      const cols = (r.colleagues||[]).map(k=>COLLABS[k]?COLLABS[k].name:k).join(', ');
+      const cols = (r.colleagues||[]).map(k => k === 'admin' ? ADMIN_USER.name : (COLLABS[k]?COLLABS[k].name:k)).join(', ');
       let respHtml = '';
       if(r.responses){
         respHtml = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">';
         Object.entries(r.responses).forEach(([k,v]) => {
-          const name = COLLABS[k] ? COLLABS[k].name : k;
+          const name = k === 'admin' ? ADMIN_USER.name : (COLLABS[k] ? COLLABS[k].name : k);
           const icon = v === 'yes' ? '✅' : (v === 'no' ? '❌' : '⏳');
           respHtml += `<span class="rsvp-status rsvp-${v==='yes'?'yes':(v==='no'?'no':'pending')}">${icon} ${name}</span>`;
         });
@@ -4711,7 +4725,7 @@ function openRequestsModal(){
   if(resolved.length){
     html += '<h4 style="font-family:Fraunces,serif;font-size:14px;margin:16px 0 8px;color:var(--ink-soft)">Resolvidos</h4>';
     resolved.reverse().forEach(r => {
-      const who = COLLABS[r.who] ? COLLABS[r.who].name : r.who;
+      const who = r.who === 'admin' ? ADMIN_USER.name : (COLLABS[r.who] ? COLLABS[r.who].name : r.who);
       const icon = r.status === 'approved' ? '✅' : '❌';
       const label = r.type === 'meeting' ? 'reunião' : 'troca de dia';
       html += `<div class="request-card"><div class="rc-meta">${icon} ${who} — ${label} (${r.status === 'approved' ? 'aprovado' : 'negado'})</div></div>`;
@@ -4797,14 +4811,33 @@ function deletePersonalNote(){
 }
 
 // ============ MEETING REQUEST ============
+function meetingMeKey(){
+  // quem esta usando o app agora (viewer ou admin)
+  return state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+}
+function meetingMeName(){
+  const me = meetingMeKey();
+  if(!me) return '';
+  return me === 'admin' ? ADMIN_USER.name : (COLLABS[me]?.name || me);
+}
 function openMeetingRequest(){
+  const me = meetingMeKey();
+  if(!me){ toast('Faca login primeiro'); return; }
   $('#meetingDate').value = todayKey;
   $('#meetingTime').value = '10:00';
   $('#meetingNote').value = '';
   const picker = $('#meetingCollabPicker');
-  const others = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== state.viewerAs);
-  picker.innerHTML = others.map(([k, info]) =>
-    `<button class="pick" data-mcollab="${k}"><span class="dot" style="background:var(${info.cssVar})"></span>${info.name}</button>`
+  const candidates = [];
+  Object.entries(COLLABS).forEach(([k, info]) => {
+    if(k === 'todos' || k === me) return;
+    candidates.push({ key:k, name:info.name, cssVar:info.cssVar });
+  });
+  // sempre incluir a admin (Suzana), exceto se for ela mesma criando
+  if(me !== 'admin'){
+    candidates.push({ key:'admin', name:ADMIN_USER.name, cssVar:'--ink' });
+  }
+  picker.innerHTML = candidates.map(c =>
+    `<button class="pick" data-mcollab="${c.key}"><span class="dot" style="background:var(${c.cssVar})"></span>${c.name}</button>`
   ).join('');
   picker.querySelectorAll('.pick').forEach(b => {
     b.addEventListener('click', () => b.classList.toggle('selected'));
@@ -4812,22 +4845,25 @@ function openMeetingRequest(){
   $('#meetingRequestModal').classList.add('open');
 }
 function submitMeetingRequest(){
+  const me = meetingMeKey();
+  if(!me){ toast('Faca login primeiro'); return; }
   const colleagues = Array.from($$('#meetingCollabPicker .pick.selected')).map(b => b.dataset.mcollab);
   if(!colleagues.length){ toast('Selecione pelo menos um participante'); return; }
   if(!state.requests) state.requests = [];
   const responses = {};
   colleagues.forEach(c => { responses[c] = 'pending'; });
   state.requests.push({
-    id: uid(), type:'meeting', who: state.viewerAs, colleagues, responses,
+    id: uid(), type:'meeting', who: me, colleagues, responses,
     suggestedDate: $('#meetingDate').value, suggestedTime: $('#meetingTime').value,
     note: $('#meetingNote').value.trim(), status:'pending', createdAt: new Date().toISOString(),
     resolvedAt:null, eventId:null
   });
   save('requests');
-  logHistory(`${COLLABS[state.viewerAs].name} convidou ${colleagues.map(c=>COLLABS[c].name).join(', ')} para reunião`);
+  const fromName = meetingMeName();
+  const toNames = colleagues.map(c => c === 'admin' ? ADMIN_USER.name : (COLLABS[c]?.name || c));
+  logHistory(`${fromName} convidou ${toNames.join(', ')} para reunião`);
   $('#meetingRequestModal').classList.remove('open');
   toast('Convite enviado!');
-  const fromName = COLLABS[state.viewerAs]?.name || state.viewerAs;
   colleagues.forEach(c => triggerPush(c, '📅 Convite de reunião', `${fromName} quer marcar em ${$('#meetingDate').value}`));
 }
 
@@ -4902,12 +4938,15 @@ function respondSubstituteRequest(reqId, response){
 }
 
 function respondMeetingRequest(reqId, response){
+  const me = meetingMeKey();
+  if(!me) return;
   const req = (state.requests||[]).find(r=>r.id===reqId);
   if(!req || !req.responses || req.status !== 'pending') return;
-  if(req.responses[state.viewerAs] !== 'pending') return;
-  req.responses[state.viewerAs] = response;
-  const who = COLLABS[state.viewerAs].name;
-  logHistory(`${who} ${response==='yes'?'aceitou':'recusou'} reunião de ${COLLABS[req.who].name}`);
+  if(req.responses[me] !== 'pending') return;
+  req.responses[me] = response;
+  const myName = me === 'admin' ? ADMIN_USER.name : (COLLABS[me]?.name || me);
+  const fromName = req.who === 'admin' ? ADMIN_USER.name : (COLLABS[req.who]?.name || req.who);
+  logHistory(`${myName} ${response==='yes'?'aceitou':'recusou'} reunião de ${fromName}`);
 
   // verificar se todos aceitaram
   const allResponded = Object.values(req.responses).every(v => v !== 'pending');
@@ -4917,13 +4956,14 @@ function respondMeetingRequest(reqId, response){
     req.resolvedAt = new Date().toISOString();
     const k = req.suggestedDate;
     const allPeople = [req.who, ...req.colleagues];
-    const participants = allPeople.map(c=>COLLABS[c]?COLLABS[c].name:c).join(', ');
+    const participants = allPeople.map(c => c === 'admin' ? ADMIN_USER.name : (COLLABS[c]?.name || c)).join(', ');
     const rsvpDone = {};
     allPeople.forEach(c => { rsvpDone[c] = 'yes'; });
     const newEv = {
       id: uid(), title:'Reunião: '+participants,
       collab:'todos', type:'reuniao', startTime:req.suggestedTime, endTime:addHour(req.suggestedTime),
-      desc:(req.note||''), link:'', location:'', recurring:'none', pinned:false, private:false,
+      desc:(req.note||''), link:'', location:'', recurring:'none', pinned:false, private:true,
+      attendees: allPeople,
       createdAt:new Date().toISOString(), rsvp:rsvpDone, comments:[], tasks:[], completed:false
     };
     if(!state.events[k]) state.events[k] = [];
