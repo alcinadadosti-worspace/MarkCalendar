@@ -52,6 +52,10 @@
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
 *{box-sizing:border-box;margin:0;padding:0}
+body.modal-locked{overflow:hidden;position:fixed;width:100%;left:0;right:0}
+.modal-backdrop.open{touch-action:none}
+.modal-backdrop.open .modal{touch-action:auto;overscroll-behavior:contain}
+#msgThread,#msgContactsList,#diaryAllHistory,#kudosList,#requestsBody,#historyBody,#searchResults{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 html,body{background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;transition:background .25s ease,color .25s ease}
 body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
@@ -2039,18 +2043,20 @@ async function loadAll(){
 let localSaveCount = 0;
 let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
 
-async function save(key){
+function save(key){
   localSaveCount++;
-  localStorage.setItem('cache_' + key, JSON.stringify(state[key]));
-  try{
-    await window.storage.set(key, JSON.stringify(state[key]));
+  const payload = JSON.stringify(state[key]);
+  // 1. cache local imediato (a UI ja pode renderizar baseado em state)
+  localStorage.setItem('cache_' + key, payload);
+  // 2. Firestore em background (nao bloqueia)
+  window.storage.set(key, payload).then(() => {
     updateOnlineStatus(true);
-  }catch(e){
+  }).catch(e => {
     console.warn('save offline, queued:', key);
     if(!offlineQueue.includes(key)) offlineQueue.push(key);
     localStorage.setItem('offlineQueue', JSON.stringify(offlineQueue));
     updateOnlineStatus(false);
-  }
+  });
   setTimeout(() => { localSaveCount = Math.max(0, localSaveCount-1); }, 1500);
 }
 
@@ -4702,17 +4708,12 @@ function resolveRequest(reqId, status){
 }
 
 // ============ PERSONAL NOTES ============
-async function savePersonalNote(){
+function savePersonalNote(){
   const key = activeDateKey;
   const userKey = state.role === 'admin' ? 'admin' : state.viewerAs;
   if(!userKey) return;
   const text = $('#personalNoteText').value.trim();
   const icon = (document.querySelector('.note-ico-btn.selected') || {}).dataset?.nico || '📝';
-  // reload notes from Firestore before merging to avoid overwriting other users
-  try{
-    const r = await window.storage.get('notes');
-    if(r && r.value) state.notes = JSON.parse(r.value);
-  }catch(e){}
   if(!state.notes[key]) state.notes[key] = {};
   if(text) state.notes[key][userKey] = { text, icon };
   else delete state.notes[key][userKey];
@@ -5694,6 +5695,29 @@ function bindEvents(){
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(function(){});
 }
+
+// body scroll lock quando modal abre (previne scroll do fundo no mobile)
+let scrollLockY = 0;
+function lockBodyScroll(){
+  scrollLockY = window.scrollY;
+  document.body.style.top = '-' + scrollLockY + 'px';
+  document.body.classList.add('modal-locked');
+}
+function unlockBodyScroll(){
+  document.body.classList.remove('modal-locked');
+  document.body.style.top = '';
+  window.scrollTo(0, scrollLockY);
+}
+const modalObserver = new MutationObserver(() => {
+  const anyOpen = document.querySelector('.modal-backdrop.open');
+  if(anyOpen && !document.body.classList.contains('modal-locked')) lockBodyScroll();
+  else if(!anyOpen && document.body.classList.contains('modal-locked')) unlockBodyScroll();
+});
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.modal-backdrop').forEach(m => {
+    modalObserver.observe(m, { attributes:true, attributeFilter:['class'] });
+  });
+});
 // inicializar OneSignal
 try { initOneSignal(); } catch(e) {}
 let deferredInstall = null;
