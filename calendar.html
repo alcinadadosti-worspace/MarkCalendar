@@ -3996,9 +3996,9 @@ function deleteEvent(id){
   if(relReq){ relReq.status = 'cancelled'; relReq.resolvedAt = new Date().toISOString(); save('requests'); }
   logHistory(`Excluiu "${ev.title}" (${COLLABS[ev.collab].name})`);
   save('events');
-  renderExistingEvents();
-  render();
   toast('Evento excluído');
+  closeModal();
+  render();
 }
 
 function closeModal(){
