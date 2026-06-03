@@ -4224,6 +4224,7 @@ function openInsights(){
 
 // ============ HISTORY MODAL ============
 function openHistory(){
+  const wrap = $('#historyBody');
   // filtrar apenas acoes de eventos/tarefas — regex que verifica padroes especificos
   const EVENT_PATTERNS = [
     /^criou\s+"/i,
