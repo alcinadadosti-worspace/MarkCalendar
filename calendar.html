@@ -546,6 +546,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   padding:28px;animation:pop .2s ease;max-height:90vh;overflow-y:auto;
 }
 .modal.wide{max-width:680px}
+.modal-close-x{position:absolute;top:12px;right:12px;width:32px;height:32px;border:1.5px solid var(--ink);border-radius:50%;background:var(--card);color:var(--ink);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;transition:background .15s ease}
+.modal-close-x:hover{background:var(--ink);color:var(--bg)}
+.modal-backdrop.open .modal{position:relative}
+.modal-close-x + h3{padding-right:40px}
 @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
 .modal h3{font-family:'Fraunces',serif;font-weight:700;font-size:26px;letter-spacing:-0.02em;margin-bottom:2px;display:flex;align-items:center;gap:10px}
 .modal .sub{font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:var(--ink-soft);margin-bottom:22px}
@@ -1319,6 +1323,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ MODAL EVENTO ============ -->
 <div class="modal-backdrop" id="modal">
   <div class="modal wide">
+    <button class="modal-close-x" id="modalCloseX" title="Fechar" aria-label="Fechar">&times;</button>
     <h3 id="modalTitle">Eventos do dia</h3>
     <p class="sub" id="modalDate">—</p>
 
@@ -1461,7 +1466,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       </div>
 
       <div class="modal-actions">
-        <button class="btn" id="cancelBtn">Fechar</button>
         <button class="btn primary" id="saveBtn">Adicionar evento</button>
       </div>
     </div>
@@ -5564,7 +5568,7 @@ function bindEvents(){
 
   // save/cancel
   $('#saveBtn').addEventListener('click', saveEvent);
-  $('#cancelBtn').addEventListener('click', closeModal);
+  $('#modalCloseX').addEventListener('click', closeModal);
   $('#closeViewerBtn').addEventListener('click', closeModal);
 
   // close modals on backdrop / esc (exceto login quando nao logado)
