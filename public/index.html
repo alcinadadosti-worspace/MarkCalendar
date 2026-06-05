@@ -546,9 +546,8 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   padding:28px;animation:pop .2s ease;max-height:90vh;overflow-y:auto;
 }
 .modal.wide{max-width:680px}
-.modal-close-x{position:sticky;top:0;float:right;width:32px;height:32px;border:1.5px solid var(--ink);border-radius:50%;background:var(--card);color:var(--ink);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:5;transition:background .15s ease;margin:-12px -12px 0 0;box-shadow:1px 1px 0 var(--ink)}
+.modal-close-x{position:sticky;top:0;float:right;width:32px;height:32px;border:1.5px solid var(--ink);border-radius:50%;background:var(--card);color:var(--ink);font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:5;transition:background .15s ease;margin:-12px -12px 8px 8px;box-shadow:1px 1px 0 var(--ink)}
 .modal-close-x:hover{background:var(--ink);color:var(--bg)}
-.modal-close-x + h3{clear:right}
 @keyframes pop{from{transform:scale(.96);opacity:0}to{transform:scale(1);opacity:1}}
 .modal h3{font-family:'Fraunces',serif;font-weight:700;font-size:26px;letter-spacing:-0.02em;margin-bottom:2px;display:flex;align-items:center;gap:10px}
 .modal .sub{font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:var(--ink-soft);margin-bottom:22px}
@@ -1497,9 +1496,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div class="readonly-note">
         Você pode confirmar presença e comentar nos seus eventos e nos eventos da equipe.
       </div>
-      <div class="modal-actions">
-        <button class="btn primary" id="closeViewerBtn">Fechar</button>
-      </div>
     </div>
   </div>
 </div>
@@ -1507,18 +1503,17 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ REQUESTS ============ -->
 <div class="modal-backdrop" id="requestsModal">
   <div class="modal wide">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>🔔 Solicitações</h3>
     <p class="sub">Pedidos dos colaboradores</p>
     <div id="requestsBody"></div>
-    <div class="modal-actions">
-      <button class="btn primary" onclick="document.getElementById('requestsModal').classList.remove('open')">Fechar</button>
-    </div>
   </div>
 </div>
 
 <!-- ============ MY DAY ============ -->
 <div class="modal-backdrop" id="myDayModal">
   <div class="modal wide">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>☀️ Meu dia</h3>
     <p class="sub" id="myDayDate"></p>
     <div id="myDayResume" style="background:var(--bg-2);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px"></div>
@@ -1541,9 +1536,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     </div>
 
 
-    <div class="modal-actions">
-      <button class="btn primary" onclick="document.getElementById('myDayModal').classList.remove('open')">Fechar</button>
-    </div>
   </div>
 </div>
 
@@ -1580,6 +1572,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ SUBSTITUTE PICKER ============ -->
 <div class="modal-backdrop" id="substituteModal">
   <div class="modal" style="max-width:420px">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>🔄 Pedir substituição</h3>
     <p class="sub">Quem você quer pedir que substitua você?</p>
     <div id="substitutePicker" class="collab-picker" style="grid-template-columns:1fr 1fr;gap:6px"></div>
@@ -1588,7 +1581,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <input type="text" id="substituteReason" placeholder="Ex: imprevisto, viagem..." maxlength="100">
     </div>
     <div class="modal-actions">
-      <button class="btn" id="substituteCancelBtn">Cancelar</button>
       <button class="btn primary" id="substituteConfirmBtn">Enviar pedido</button>
     </div>
   </div>
@@ -1597,6 +1589,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ DIARY ============ -->
 <div class="modal-backdrop" id="diaryModal">
   <div class="modal wide">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>📔 Meu diário</h3>
     <p class="sub">Reflexões pessoais sobre cada dia (só você vê)</p>
 
@@ -1615,15 +1608,13 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:20px 0 8px">📖 Entradas anteriores</h4>
     <div id="diaryAllHistory" style="display:flex;flex-direction:column;gap:8px;max-height:300px;overflow-y:auto"></div>
 
-    <div class="modal-actions">
-      <button class="btn primary" onclick="document.getElementById('diaryModal').classList.remove('open')">Fechar</button>
-    </div>
   </div>
 </div>
 
 <!-- ============ KUDOS ============ -->
 <div class="modal-backdrop" id="kudosModal">
   <div class="modal">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>⭐ Dar elogio</h3>
     <p class="sub">Reconheça o esforço de um colega</p>
     <div class="form-group">
@@ -1637,7 +1628,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:14px;margin:14px 0 8px">📋 Elogios recentes</h4>
     <div id="kudosList" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
     <div class="modal-actions">
-      <button class="btn" onclick="document.getElementById('kudosModal').classList.remove('open')">Fechar</button>
       <button class="btn primary" id="kudosSendBtn">Enviar elogio</button>
     </div>
   </div>
@@ -1646,6 +1636,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ MEETING REQUEST ============ -->
 <div class="modal-backdrop" id="meetingRequestModal">
   <div class="modal">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>📅 Solicitar reunião</h3>
     <p class="sub">Proponha um encontro com a equipe</p>
     <div class="form-group">
@@ -1667,7 +1658,6 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <textarea id="meetingNote" placeholder="Sobre o que?" maxlength="200"></textarea>
     </div>
     <div class="modal-actions">
-      <button class="btn" id="meetingCancelBtn">Cancelar</button>
       <button class="btn primary" id="meetingSubmitBtn">Enviar solicitação</button>
     </div>
   </div>
@@ -1676,36 +1666,30 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ INSIGHTS ============ -->
 <div class="modal-backdrop" id="insightsModal">
   <div class="modal wide">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>📊 Insights do mês</h3>
     <p class="sub">Como anda a equipe</p>
     <div id="insightsBody"></div>
-    <div class="modal-actions">
-      <button class="btn primary" onclick="document.getElementById('insightsModal').classList.remove('open')">Fechar</button>
-    </div>
   </div>
 </div>
 
 <!-- ============ HISTORY ============ -->
 <div class="modal-backdrop" id="historyModal">
   <div class="modal">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>🕒 Histórico</h3>
     <p class="sub">Últimas atividades no calendário</p>
     <div id="historyBody"></div>
-    <div class="modal-actions">
-      <button class="btn primary" onclick="document.getElementById('historyModal').classList.remove('open')">Fechar</button>
-    </div>
   </div>
 </div>
 
 <!-- ============ STATUS ============ -->
 <div class="modal-backdrop" id="statusModal">
   <div class="modal">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>👥 Status da equipe — hoje</h3>
     <p class="sub">Onde cada um está</p>
     <div id="statusBody"></div>
-    <div class="modal-actions">
-      <button class="btn primary" onclick="document.getElementById('statusModal').classList.remove('open')">Fechar</button>
-    </div>
   </div>
 </div>
 
@@ -1762,12 +1746,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ CLIMA ============ -->
 <div class="modal-backdrop" id="weatherModal">
   <div class="modal wide">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>🌤️ Clima — Unidades Alagoas</h3>
     <p class="sub">Clima atual e previsão das cidades atendidas</p>
     <div id="weatherBody"></div>
-    <div class="modal-actions">
-      <button class="btn primary" onclick="document.getElementById('weatherModal').classList.remove('open')">Fechar</button>
-    </div>
   </div>
 </div>
 
@@ -5567,8 +5549,15 @@ function bindEvents(){
 
   // save/cancel
   $('#saveBtn').addEventListener('click', saveEvent);
-  $('#modalCloseX').addEventListener('click', closeModal);
-  $('#closeViewerBtn').addEventListener('click', closeModal);
+  // X de fechar em qualquer modal: encontra a backdrop pai e fecha
+  document.addEventListener('click', e => {
+    const x = e.target.closest('.modal-close-x');
+    if(!x) return;
+    const back = x.closest('.modal-backdrop');
+    if(!back) return;
+    back.classList.remove('open');
+    if(back.id === 'modal'){ activeDateKey = null; editingEvent = null; }
+  });
 
   // close modals on backdrop / esc (exceto login quando nao logado)
   $$('.modal-backdrop').forEach(m => {
@@ -5612,7 +5601,6 @@ function bindEvents(){
   $('#diaryFullText').addEventListener('input', updateDiaryWordCount);
   $('#diaryFullSaveBtn').addEventListener('click', saveDiaryFull);
   $('#substituteConfirmBtn').addEventListener('click', confirmSubstitute);
-  $('#substituteCancelBtn').addEventListener('click', closeSubstituteModal);
   $('#addPriorityBtn').addEventListener('click', addPriority);
   $('#newPriorityInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addPriority(); } });
   $('#addBlockBtn').addEventListener('click', addBlock);
@@ -5626,7 +5614,6 @@ function bindEvents(){
     renderMsgContacts();
   });
   $('#meetingSubmitBtn').addEventListener('click', submitMeetingRequest);
-  $('#meetingCancelBtn').addEventListener('click', () => $('#meetingRequestModal').classList.remove('open'));
   $('#saveNoteBtn').addEventListener('click', savePersonalNote);
   $('#taskAssignAddBtn').addEventListener('click', addTaskAssign);
   $('#taskAssignInput').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addTaskAssign(); } });
