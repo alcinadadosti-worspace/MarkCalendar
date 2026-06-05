@@ -2259,7 +2259,12 @@ const $ = s => document.querySelector(s);
 function evVisibleTo(ev, who){
   // reuniao privada (criada via convite): so participantes veem
   if(ev.type === 'reuniao' && Array.isArray(ev.attendees)) return ev.attendees.includes(who);
-  return ev.collab === who || ev.collab === 'todos' || (ev.tasks && ev.tasks.some(t => t.collab === who));
+  // se tem tasks atribuidas, so quem tem task (proprio ou 'todos') ve
+  if(ev.tasks && ev.tasks.length){
+    return ev.tasks.some(t => t.collab === who || t.collab === 'todos');
+  }
+  // sem tasks: collab direto ou 'todos' (equipe inteira)
+  return ev.collab === who || ev.collab === 'todos';
 }
 // reunioes privadas: so quem criou e os convidados aceitos podem ver, em qualquer role
 function canSeeEvent(ev){
@@ -3739,7 +3744,15 @@ function renderExistingEvents(){
         <span class="ee-title">${escapeHtml(ev.title)}</span>
       </div>
       <div class="ee-meta">
-        <span class="chip">${c.name}</span>
+        <span class="chip">${(function(){
+          if(ev.collab === 'todos' && ev.tasks && ev.tasks.length){
+            const uniq = [...new Set(ev.tasks.map(t => t.collab))];
+            if(uniq.length === 1 && uniq[0] === 'todos') return 'Equipe inteira';
+            const names = uniq.filter(k => k !== 'todos').map(k => COLLABS[k]?.name || k);
+            return names.join(', ') + (uniq.includes('todos') ? ' + Equipe' : '');
+          }
+          return c.name;
+        })()}</span>
         <span class="chip">${type.label}</span>
         ${timeChip}${recurChip}${pinChip}${privChip}${prioChip}${conflictChip}
       </div>
