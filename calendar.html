@@ -3634,9 +3634,15 @@ function renderExistingEvents(){
     let actionsHTML = '';
     if(state.role === 'admin'){
       const completedBadge = evFullyDone(ev) ? `<span class="ee-completed">✅ Concluído</span>` : '';
+      const adminHelpList = ev.helpRequests || (ev.helpRequest ? [ev.helpRequest] : []);
+      const adminGiveHelpBtns = adminHelpList.filter(h => h.who !== 'admin').map(h => {
+        const reqName = h.who === 'admin' ? ADMIN_USER.name : (COLLABS[h.who] ? COLLABS[h.who].name : h.who);
+        return `<button class="btn small" data-act="give-help" data-id="${ev.id}" data-help-who="${h.who}" style="background:#C8E6C9;border-color:#1B5E20;color:#1B5E20;font-weight:600">🤝 Ajudar ${reqName}</button>`;
+      }).join('');
       actionsHTML = `
         <div class="ee-actions">
           ${completedBadge}
+          ${adminGiveHelpBtns}
           <button class="btn small" data-act="edit" data-id="${ev.id}">Editar</button>
           <button class="btn small danger" data-act="delete" data-id="${ev.id}">Excluir</button>
         </div>
@@ -3680,11 +3686,13 @@ function renderExistingEvents(){
       const hasMyTask = hasTasks && ev.tasks.some(t => (typeof t === 'object' ? t.collab : ev.collab) === state.viewerAs);
       const subBtn = hasMyTask ? `<button class="btn small" data-act="substitute" data-id="${ev.id}">🔄 Pedir substituição</button>` : '';
 
-      // Oferecer ajuda (se NAO sou parte do evento mas posso ver)
-      const isMyEvent = ev.collab === state.viewerAs || (ev.tasks && ev.tasks.some(t => t.collab === state.viewerAs));
-      const offerBtn = !isMyEvent ? `<button class="btn small" data-act="offer-help" data-id="${ev.id}">🤝 Oferecer ajuda</button>` : '';
+      // Ajudar quem pediu ajuda (substitui o "Oferecer ajuda")
+      const giveHelpBtns = helpList.filter(h => h.who !== state.viewerAs).map(h => {
+        const reqName = h.who === 'admin' ? ADMIN_USER.name : (COLLABS[h.who] ? COLLABS[h.who].name : h.who);
+        return `<button class="btn small" data-act="give-help" data-id="${ev.id}" data-help-who="${h.who}" style="background:#C8E6C9;border-color:#1B5E20;color:#1B5E20;font-weight:600">🤝 Ajudar ${reqName}</button>`;
+      }).join('');
 
-      actionsHTML = `<div class="ee-actions">${completeBtn}${prepBtn}${helpBtn}${subBtn}${offerBtn}${swapBtn}${cancelBtn}</div>`;
+      actionsHTML = `<div class="ee-actions">${completeBtn}${prepBtn}${helpBtn}${subBtn}${giveHelpBtns}${swapBtn}${cancelBtn}</div>`;
     }
 
     // comments
@@ -3847,23 +3855,24 @@ function renderExistingEvents(){
       toast('Pedido de ajuda cancelado');
     });
   });
-  container.querySelectorAll('[data-act="offer-help"]').forEach(b => {
+  container.querySelectorAll('[data-act="give-help"]').forEach(b => {
     b.addEventListener('click', () => {
       const ev = (state.events[activeDateKey]||[]).find(x=>x.id===b.dataset.id);
-      if(!ev) return;
-      ev.helpOffers = ev.helpOffers || [];
-      const already = ev.helpOffers.some(o => o.who === state.viewerAs);
-      if(already){
-        ev.helpOffers = ev.helpOffers.filter(o => o.who !== state.viewerAs);
-        toast('Oferta de ajuda removida');
-      } else {
-        ev.helpOffers.push({ who: state.viewerAs, when: new Date().toISOString() });
-        logHistory(`🤝 ${COLLABS[state.viewerAs].name} ofereceu ajuda em "${ev.title}"`);
-        toast('Oferta de ajuda enviada!');
-      }
+      if(!ev || !ev.helpRequests) return;
+      const helpWho = b.dataset.helpWho;
+      const me = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+      if(!me) return;
+      // tira o pedido da lista
+      ev.helpRequests = ev.helpRequests.filter(h => h.who !== helpWho);
+      if(!ev.helpRequests.length) delete ev.helpRequests;
+      const helperName = me === 'admin' ? ADMIN_USER.name : (COLLABS[me]?.name || me);
+      const helpedName = helpWho === 'admin' ? ADMIN_USER.name : (COLLABS[helpWho]?.name || helpWho);
+      logHistory(`🤝 ${helperName} vai ajudar ${helpedName} em "${ev.title}"`);
       save('events');
       renderExistingEvents();
       render();
+      toast(`Voce vai ajudar ${helpedName}`);
+      triggerPush(helpWho, '🤝 Alguem vai te ajudar', `${helperName} esta ajudando em ${ev.title}`);
     });
   });
   container.querySelectorAll('[data-act="substitute"]').forEach(b => {
