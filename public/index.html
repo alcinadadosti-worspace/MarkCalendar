@@ -453,6 +453,14 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 @keyframes priorityPulse{0%,100%{opacity:1}50%{opacity:0.65}}
 [data-theme="dark"] .priority-chip.high{background:#5D2C00;color:#FFCC80;border-color:#FFCC80}
 [data-theme="dark"] .priority-chip.urgent{background:#B71C1C;color:#FFFFFF;border-color:#FFCDD2}
+
+/* Folga: badge nas celulas e botoes do picker */
+.folga-mark{display:inline-flex;align-items:center;gap:2px;padding:1px 4px;border-radius:3px;font-size:9px;font-weight:700;border:1px solid var(--ink);line-height:1.3}
+.folga-pick{padding:8px 12px;border:1.5px solid var(--ink);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;transition:background .15s ease}
+.folga-pick:hover{background:var(--bg-2)}
+.folga-pick.selected{background:#FFE082;color:#5C4A00;border-color:#5C4A00;font-weight:600}
+[data-theme="dark"] .folga-pick.selected{background:#5C4A00;color:#FFE082;border-color:#FFE082}
+.folga-pick img{width:20px;height:20px;border-radius:50%;object-fit:cover}
 .event .priority-chip{font-size:8px;padding:0 3px;letter-spacing:0;border-width:1px;line-height:1.4}
 .week-event .priority-chip{font-size:8px;padding:0 3px;letter-spacing:0;border-width:1px;line-height:1.4}
 .day-note-preview-ico{font-size:9px;flex-shrink:0}
@@ -1466,6 +1474,12 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <div class="modal-actions">
         <button class="btn primary" id="saveBtn">Adicionar evento</button>
       </div>
+
+      <div id="folgaWrap" style="margin-top:20px;padding-top:16px;border-top:1.5px dashed var(--ink-soft)">
+        <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0 0 4px;letter-spacing:-0.01em">🏖️ Folga do dia</h4>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Marque quem esta de folga. Folgas nao contam como carga do mes.</p>
+        <div id="folgaPicker" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      </div>
     </div>
 
     <div id="personalNoteWrap" style="display:none">
@@ -2047,7 +2061,8 @@ let state = {
   blocks: {},             // { 'YYYY-MM-DD': { joao: [{start,end,reason}] } }
   reminders: {},          // { 'eventId': { collab: minutos } }
   kudos: [],              // { id, from, to, text, when }
-  messages: []            // { id, from, to, text, when, read }
+  messages: [],           // { id, from, to, text, when, read }
+  folgas: {}              // { 'YYYY-MM-DD': ['joao', 'lianda'] } - dias de folga (nao contam como carga)
 };
 
 state.current.setDate(1);
@@ -2060,7 +2075,7 @@ async function loadAll(){
   const localFestive = localStorage.getItem('userFestive');
   if(localFestive !== null) state.festive = localFestive === '1';
 
-  const keys = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary','blocks','reminders','kudos','messages'];
+  const keys = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary','blocks','reminders','kudos','messages','folgas'];
   for(const k of keys){
     try{
       const r = await window.storage.get(k);
@@ -3095,6 +3110,13 @@ function renderMonth(){
     marks.className = 'day-marks';
     if(holiday) marks.innerHTML += `<span class="holiday-dot" title="${escapeHtml(holiday)}">feriado</span>`;
     if(bdayCol && !muted) marks.innerHTML += `<span class="bday" title="Aniversário de ${COLLABS[bdayCol].name}">🎂</span>`;
+    // folgas: badge por colaborador em folga neste dia
+    const folgaList = (state.folgas || {})[key] || [];
+    folgaList.forEach(c => {
+      const ci = COLLABS[c];
+      if(!ci) return;
+      marks.innerHTML += `<span class="folga-mark" title="${ci.name} em folga" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink)">🏖️${ci.initial}</span>`;
+    });
     const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
     let notePreviewText = '';
     let notePreviewIcon = '';
@@ -3456,6 +3478,7 @@ function openModal(key){
     $('#adminForm').style.display = '';
     $('#viewerNote').style.display = 'none';
     resetForm();
+    renderFolgaPicker();
   } else {
     $('#adminForm').style.display = 'none';
     if(state.viewMode === 'team'){
@@ -4669,6 +4692,46 @@ function addTaskAssign(){
   input.value = '';
   renderTaskList();
   input.focus();
+}
+
+function renderFolgaPicker(){
+  const picker = $('#folgaPicker');
+  if(!picker || !activeDateKey) return;
+  if(!state.folgas) state.folgas = {};
+  const onFolga = state.folgas[activeDateKey] || [];
+  picker.innerHTML = Object.entries(COLLABS)
+    .filter(([k]) => k !== 'todos')
+    .map(([k, info]) => {
+      const sel = onFolga.includes(k);
+      const photo = info.photo ? `<img src="${info.photo}" alt="">` : '';
+      return `<button type="button" class="folga-pick${sel?' selected':''}" data-folga-collab="${k}">${photo}${info.name}${sel?' 🏖️':''}</button>`;
+    }).join('');
+  picker.querySelectorAll('[data-folga-collab]').forEach(b => {
+    b.addEventListener('click', () => toggleFolga(b.dataset.folgaCollab));
+  });
+}
+
+function toggleFolga(collab){
+  if(state.role !== 'admin') return;
+  if(!activeDateKey) return;
+  if(!state.folgas) state.folgas = {};
+  if(!state.folgas[activeDateKey]) state.folgas[activeDateKey] = [];
+  const list = state.folgas[activeDateKey];
+  const idx = list.indexOf(collab);
+  const collabName = COLLABS[collab]?.name || collab;
+  if(idx >= 0){
+    list.splice(idx, 1);
+    if(list.length === 0) delete state.folgas[activeDateKey];
+    logHistory(`🏖️ ${collabName} removido(a) da folga em ${activeDateKey}`);
+    toast(`${collabName} nao esta mais em folga`);
+  } else {
+    list.push(collab);
+    logHistory(`🏖️ ${collabName} de folga em ${activeDateKey}`);
+    toast(`${collabName} marcado(a) de folga`);
+  }
+  save('folgas');
+  renderFolgaPicker();
+  render();
 }
 
 // ============ BUSCA ============
