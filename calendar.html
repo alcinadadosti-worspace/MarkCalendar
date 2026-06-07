@@ -2272,7 +2272,24 @@ function canSeeEvent(ev){
     const me = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
     return !!me && ev.attendees.includes(me);
   }
+  // eventos privados: viewer so ve se for o dono. admin sempre ve.
+  if(ev.private && state.role === 'viewer' && state.viewerAs){
+    return evVisibleTo(ev, state.viewerAs);
+  }
   return true;
+}
+// calcula cor de texto (preto/branco) por contraste sobre uma cor de fundo
+function contrastInk(hex){
+  if(!hex || typeof hex !== 'string') return '#1A1438';
+  let h = hex.replace('#','').trim();
+  if(h.length === 3) h = h.split('').map(c => c+c).join('');
+  if(h.length !== 6) return '#1A1438';
+  const r = parseInt(h.substring(0,2), 16);
+  const g = parseInt(h.substring(2,4), 16);
+  const b = parseInt(h.substring(4,6), 16);
+  if(isNaN(r) || isNaN(g) || isNaN(b)) return '#1A1438';
+  const yiq = (r*299 + g*587 + b*114) / 1000;
+  return yiq >= 140 ? '#1A1438' : '#FFFFFF';
 }
 function priorityChip(p){
   if(p === 'high') return '<span class="priority-chip high" title="Prioridade alta">Alta</span>';
@@ -2413,9 +2430,11 @@ function render(){
   lastRenderKey = currentKey;
   document.documentElement.classList.toggle('no-anim', !isNavigation);
 
-  // aplicar cores custom
+  // aplicar cores custom (fundo + cor de texto por contraste)
   Object.entries(state.customColors).forEach(([col, c]) => {
-    if(c) document.documentElement.style.setProperty(COLLABS[col].cssVar, c);
+    if(!c || !COLLABS[col]) return;
+    document.documentElement.style.setProperty(COLLABS[col].cssVar, c);
+    document.documentElement.style.setProperty(COLLABS[col].cssVar + '-ink', contrastInk(c));
   });
 
   // título
@@ -5681,7 +5700,8 @@ function bindEvents(){
   $('#settingsReset').addEventListener('click', () => {
     if(state.role !== 'admin'){ toast('Apenas a gestora pode resetar cores'); return; }
     state.customColors = {};
-    ['--c-joao','--c-thayane','--c-lianda','--c-ravy'].forEach(v => document.documentElement.style.removeProperty(v));
+    ['--c-joao','--c-thayane','--c-lianda','--c-ravy','--c-joao-ink','--c-thayane-ink','--c-lianda-ink','--c-ravy-ink']
+      .forEach(v => document.documentElement.style.removeProperty(v));
     save('customColors');
     toast('Cores resetadas');
     openSettings();
