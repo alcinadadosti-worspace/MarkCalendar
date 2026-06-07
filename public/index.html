@@ -2062,7 +2062,8 @@ let state = {
   reminders: {},          // { 'eventId': { collab: minutos } }
   kudos: [],              // { id, from, to, text, when }
   messages: [],           // { id, from, to, text, when, read }
-  folgas: {}              // { 'YYYY-MM-DD': ['joao', 'lianda'] } - dias de folga (nao contam como carga)
+  folgas: {},             // { 'YYYY-MM-DD': ['joao', 'lianda'] } - dias de folga (nao contam como carga)
+  userPriorities: {}      // { joao: { 'eventId': 'high', ... } } - prioridade pessoal de cada usuario para cada evento
 };
 
 state.current.setDate(1);
@@ -2075,7 +2076,7 @@ async function loadAll(){
   const localFestive = localStorage.getItem('userFestive');
   if(localFestive !== null) state.festive = localFestive === '1';
 
-  const keys = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary','blocks','reminders','kudos','messages','folgas'];
+  const keys = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary','blocks','reminders','kudos','messages','folgas','userPriorities'];
   for(const k of keys){
     try{
       const r = await window.storage.get(k);
@@ -2310,6 +2311,14 @@ function priorityChip(p){
   if(p === 'high') return '<span class="priority-chip high" title="Prioridade alta">Alta</span>';
   if(p === 'urgent') return '<span class="priority-chip urgent" title="Prioridade urgente">Urgente</span>';
   return '';
+}
+// prioridade pessoal do viewer se houver, senao a prioridade do evento
+function effectivePriority(ev){
+  const me = state.viewerAs;
+  if(me && state.userPriorities && state.userPriorities[me] && state.userPriorities[me][ev.id]){
+    return state.userPriorities[me][ev.id];
+  }
+  return ev.priority;
 }
 function evFullyDone(ev){
   if(ev.tasks && ev.tasks.length){
@@ -3168,7 +3177,7 @@ function renderMonth(){
         else if(r === 'no') rsvpBit = '<span style="margin-left:auto;font-size:9px" title="Recusado">❌</span>';
       }
       const taskBadge = (ev.tasks && ev.tasks.length) ? `<span class="ev-task-badge" title="${ev.tasks.length} tarefa(s)">${ev.tasks.length}</span>` : '';
-      const prBit = priorityChip(ev.priority);
+      const prBit = priorityChip(effectivePriority(ev));
       eEl.innerHTML = `${timeBit}<span class="ico">${type.ico}</span><span class="ev-title">${escapeHtml(ev.title)}</span>${prBit}${taskBadge}${rsvpBit}`;
       if(state.role === 'admin'){
         eEl.draggable = true;
@@ -3313,7 +3322,7 @@ function renderWeek(){
       we.innerHTML = `
         <span class="we-time">${type.ico} ${ev.startTime||''}${ev.endTime?' – '+ev.endTime:''}</span>
         <span class="we-title">${escapeHtml(ev.title)}</span>
-        ${priorityChip(ev.priority)}
+        ${priorityChip(effectivePriority(ev))}
       `;
       we.addEventListener('click', e => { e.stopPropagation(); openEventDetail(key, ev.id); });
       col.appendChild(we);
@@ -3408,7 +3417,7 @@ function renderDay(){
     we.innerHTML = `
       <span class="we-time">${type.ico} ${ev.startTime||''}${ev.endTime?' – '+ev.endTime:''} · ${c.name}</span>
       <span class="we-title">${escapeHtml(ev.title)}</span>
-      ${priorityChip(ev.priority)}
+      ${priorityChip(effectivePriority(ev))}
     `;
     we.addEventListener('click', e => { e.stopPropagation(); openEventDetail(key, ev.id); });
     col.appendChild(we);
@@ -3598,7 +3607,7 @@ function renderExistingEvents(){
     let recurChip = ev.recurring && ev.recurring !== 'none' ? `<span class="chip">↻ ${ev.recurring}</span>` : '';
     let pinChip = ev.pinned ? `<span class="chip">📌 fixado</span>` : '';
     let privChip = ev.private ? `<span class="chip">🔒 privado</span>` : '';
-    let prioChip = priorityChip(ev.priority);
+    let prioChip = priorityChip(effectivePriority(ev));
     let conflictChip = isConflict ? `<span class="chip" style="background:#FFE0E0;color:var(--danger);border-color:var(--danger)">⚠ conflito</span>` : '';
 
     let linkLine = '';
@@ -3739,7 +3748,19 @@ function renderExistingEvents(){
         return `<button class="btn small" data-act="give-help" data-id="${ev.id}" data-help-who="${h.who}" style="background:#C8E6C9;border-color:#1B5E20;color:#1B5E20;font-weight:600">🤝 Ajudar ${reqName}</button>`;
       }).join('');
 
-      actionsHTML = `<div class="ee-actions">${completeBtn}${prepBtn}${helpBtn}${subBtn}${giveHelpBtns}${swapBtn}${cancelBtn}</div>`;
+      // Prioridade pessoal do viewer (so dele) — sobrescreve a prioridade definida pelo admin
+      const myPriority = (state.userPriorities && state.userPriorities[state.viewerAs] && state.userPriorities[state.viewerAs][ev.id]) || '';
+      const personalPriorityBlock = `<div class="user-priority-row" style="display:flex;align-items:center;gap:6px;width:100%;padding:8px 10px;background:var(--bg-2);border-radius:8px;margin-top:4px">
+        <span style="font-size:11px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.04em">Sua prioridade:</span>
+        <select data-user-prio="${ev.id}" style="flex:1;padding:6px 8px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
+          <option value=""${myPriority===''?' selected':''}>Usar do evento (${ev.priority === 'high' ? 'Alta' : ev.priority === 'urgent' ? 'Urgente' : 'Normal'})</option>
+          <option value="normal"${myPriority==='normal'?' selected':''}>Normal</option>
+          <option value="high"${myPriority==='high'?' selected':''}>🟠 Alta</option>
+          <option value="urgent"${myPriority==='urgent'?' selected':''}>🔴 Urgente</option>
+        </select>
+      </div>`;
+
+      actionsHTML = `<div class="ee-actions">${completeBtn}${prepBtn}${helpBtn}${subBtn}${giveHelpBtns}${swapBtn}${cancelBtn}</div>${personalPriorityBlock}`;
     }
 
     // comments
@@ -3932,6 +3953,25 @@ function renderExistingEvents(){
   });
   container.querySelectorAll('[data-act="substitute"]').forEach(b => {
     b.addEventListener('click', () => openSubstituteModal(b.dataset.id));
+  });
+  container.querySelectorAll('[data-user-prio]').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const me = state.viewerAs;
+      if(!me) return;
+      const evId = sel.dataset.userPrio;
+      const v = sel.value;
+      if(!state.userPriorities) state.userPriorities = {};
+      if(!state.userPriorities[me]) state.userPriorities[me] = {};
+      if(!v){
+        delete state.userPriorities[me][evId];
+        if(!Object.keys(state.userPriorities[me]).length) delete state.userPriorities[me];
+      } else {
+        state.userPriorities[me][evId] = v;
+      }
+      save('userPriorities');
+      toast('Sua prioridade atualizada');
+      render();
+    });
   });
   container.querySelectorAll('[data-act="edit"]').forEach(b => {
     b.addEventListener('click', () => {
