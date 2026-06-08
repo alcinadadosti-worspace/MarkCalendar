@@ -2742,12 +2742,13 @@ function renderSidebar(){
   }
   $('#logoutBtn').style.display = loggedIn ? '' : 'none';
 
-  // viewer status picker
+  // viewer status picker (colaboradores e Suzana/admin)
   const vsArea = $('#viewerStatusArea');
   if(vsArea){
-    if(state.viewerAs){
+    const meKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
+    if(meKey){
       const today = todayKey;
-      const current = (state.statuses[today] && state.statuses[today][state.viewerAs]) || 'office';
+      const current = (state.statuses[today] && state.statuses[today][meKey]) || 'office';
       vsArea.innerHTML = '<span style="font-size:10px;color:var(--ink-soft);display:block;margin-bottom:4px">Seu status hoje:</span>' +
         '<div class="viewer-status-picker">' +
         Object.entries(STATUS_LABELS).map(([s, sl]) =>
@@ -2756,7 +2757,7 @@ function renderSidebar(){
       vsArea.querySelectorAll('[data-vstatus]').forEach(b => {
         b.addEventListener('click', () => {
           if(!state.statuses[today]) state.statuses[today] = {};
-          state.statuses[today][state.viewerAs] = b.dataset.vstatus;
+          state.statuses[today][meKey] = b.dataset.vstatus;
           save('statuses');
           render();
           toast('Status atualizado');
@@ -2909,10 +2910,16 @@ function renderSidebar(){
     if(state.role === 'viewer' && state.viewerAs && state.viewMode !== 'team') return key === state.viewerAs;
     return true;
   });
+  // incluir a Suzana (admin) na lista de status, exceto quando um viewer vê só o próprio
+  const viewerOwnOnly = state.role === 'viewer' && state.viewerAs && state.viewMode !== 'team';
+  if(!viewerOwnOnly){
+    collabEntries.push(['admin', { name:ADMIN_USER.name, cssVar:'--c-todos', initial:'S', photo:ADMIN_USER.photo }]);
+  }
   collabEntries.forEach(([key, info]) => {
     const status = (state.statuses[todayKey] && state.statuses[todayKey][key]) || 'office';
     const st = STATUS_LABELS[status];
     const isFiltering = state.filterCollab === key;
+    const isAdminRow = key === 'admin';
 
     const row = document.createElement('div');
     row.className = 'collab' + (isFiltering ? ' filtering' : '');
@@ -2925,14 +2932,17 @@ function renderSidebar(){
         <span class="collab-name">${info.name}</span>
         <span class="collab-status">${st.label}</span>
       </div>
-      <span class="collab-count">${monthCounts[key]}</span>
+      <span class="collab-count">${monthCounts[key] || 0}</span>
     `;
-    row.addEventListener('click', e => {
-      if(state.role === 'admin'){
-        state.filterCollab = state.filterCollab === key ? null : key;
-      }
-      render();
-    });
+    // a linha da Suzana não filtra (eventos nunca têm collab 'admin'), só mostra o status
+    if(!isAdminRow){
+      row.addEventListener('click', e => {
+        if(state.role === 'admin'){
+          state.filterCollab = state.filterCollab === key ? null : key;
+        }
+        render();
+      });
+    }
     collabWrap.appendChild(row);
   });
 
@@ -4466,13 +4476,18 @@ function openStatus(){
   const wrap = $('#statusBody');
   const today = todayKey;
   const todayStatuses = state.statuses[today] || {};
-  const myKey = state.viewerAs;
+  const myKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
 
-  let html = '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Cada colaborador define seu próprio status. Você só pode alterar o seu.</p>';
+  let html = '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Cada pessoa define seu próprio status. Você só pode alterar o seu.</p>';
 
-  Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
+  // colaboradores + Suzana (admin)
+  const statusRoster = Object.entries(COLLABS).filter(([k])=>k!=='todos')
+    .map(([k, info]) => [k, { name:info.name, cssVar:info.cssVar, initial:info.initial }]);
+  statusRoster.push(['admin', { name:ADMIN_USER.name, cssVar:'--c-todos', initial:'S' }]);
+
+  statusRoster.forEach(([k, info]) => {
     const current = todayStatuses[k] || 'office';
-    // apenas o proprio colaborador pode editar seu status
+    // apenas a própria pessoa pode editar seu status
     const canEdit = k === myKey;
     html += `
       <div style="margin-bottom:14px">
@@ -4496,8 +4511,8 @@ function openStatus(){
   $('#statusBody').querySelectorAll('[data-status]').forEach(b => {
     b.addEventListener('click', () => {
       const col = b.dataset.collab, st = b.dataset.status;
-      // defesa: so o proprio colaborador pode mudar
-      if(col !== state.viewerAs){ toast('Apenas o próprio colaborador pode mudar seu status'); return; }
+      // defesa: só a própria pessoa pode mudar
+      if(col !== myKey){ toast('Apenas a própria pessoa pode mudar seu status'); return; }
       if(!state.statuses[today]) state.statuses[today] = {};
       state.statuses[today][col] = st;
       save('statuses');
