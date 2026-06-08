@@ -1750,6 +1750,12 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       </div>
     </div>
 
+    <div id="dangerZone" style="display:none;margin-top:18px;border-top:1px dashed var(--danger);padding-top:14px">
+      <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0 0 6px;letter-spacing:-0.01em;color:var(--danger)">Zona de perigo</h4>
+      <p class="sub" style="margin:0 0 10px">Apaga eventos, histórico, mensagens, status, pedidos, notas, kudos, diário, bloqueios, lembretes, folgas e prioridades de todos os usuários. Aniversários e cores são mantidos. Ação irreversível.</p>
+      <button class="btn" id="settingsWipe" style="background:var(--danger);color:#fff;border-color:var(--danger)">🗑️ Apagar todos os dados de teste</button>
+    </div>
+
     <div class="modal-actions">
       <button class="btn" id="settingsReset">Resetar cores</button>
       <button class="btn primary" id="settingsSave">Salvar</button>
@@ -4532,6 +4538,7 @@ function openSettings(){
     }
   }
   $('#settingsReset').style.display = isAdmin ? '' : 'none';
+  $('#dangerZone').style.display = isAdmin ? '' : 'none';
   $('#settingsModal').classList.add('open');
 }
 
@@ -5809,6 +5816,31 @@ function bindEvents(){
     toast('Cores resetadas');
     openSettings();
     render();
+  });
+  $('#settingsWipe').addEventListener('click', async () => {
+    if(state.role !== 'admin'){ toast('Apenas a gestora pode apagar os dados'); return; }
+    if(!confirm('APAGAR TODOS os dados de teste?\n\nEventos, histórico, mensagens, status, pedidos, notas, kudos, diário, bloqueios, lembretes, folgas e prioridades de TODOS os usuários serão apagados.\n\nAniversários e cores serão mantidos.\n\nEsta ação é IRREVERSÍVEL.')) return;
+    if(!confirm('Tem certeza? Esta é a última confirmação.')) return;
+    const btn = $('#settingsWipe');
+    btn.disabled = true; btn.textContent = 'Apagando...';
+    const limpar = {
+      events:{}, statuses:{}, notes:{}, diary:{}, blocks:{}, reminders:{}, folgas:{}, priorities:{}, userPriorities:{},
+      history:[], messages:[], requests:[], kudos:[]
+    };
+    try{
+      for(const [chave, vazio] of Object.entries(limpar)){
+        state[chave] = vazio;
+        await window.storage.set(chave, JSON.stringify(vazio));
+      }
+      localStorage.removeItem('offlineQueue');
+      Object.keys(localStorage).filter(k => k.startsWith('kudosLastSeen_')).forEach(k => localStorage.removeItem(k));
+      toast('Dados de teste apagados!');
+      setTimeout(() => location.reload(), 800);
+    }catch(e){
+      console.error('Falha ao apagar dados:', e);
+      btn.disabled = false; btn.textContent = '🗑️ Apagar todos os dados de teste';
+      toast('Erro ao apagar — veja o console (F12)');
+    }
   });
 
   // login
