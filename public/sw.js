@@ -1,4 +1,4 @@
-var CACHE_NAME = 'cal-equipe-v4';
+var CACHE_NAME = 'cal-equipe-v5';
 var STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -39,6 +39,23 @@ self.addEventListener('fetch', function(e) {
   if (url.hostname.includes('firestore') || url.hostname.includes('googleapis') || url.hostname.includes('open-meteo') || url.hostname.includes('gstatic') || url.hostname.includes('fcm.googleapis')) {
     return;
   }
+  // HTML / navegacao: network-first (sempre pega a versao mais nova quando online; cai pro cache se offline)
+  var isHTML = e.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/index.html';
+  if (isHTML) {
+    e.respondWith(
+      fetch(e.request).then(function(res) {
+        if (res.ok) {
+          var clone = res.clone();
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(e.request, clone); });
+        }
+        return res;
+      }).catch(function() {
+        return caches.match(e.request).then(function(c) { return c || caches.match('/index.html'); });
+      })
+    );
+    return;
+  }
+  // demais assets: cache-first com revalidacao em background
   e.respondWith(
     caches.match(e.request).then(function(cached) {
       if (cached) {
