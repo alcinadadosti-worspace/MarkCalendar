@@ -1404,7 +1404,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
           <button class="pick" data-type="folga"><span class="ico">🌴</span>Folga</button>
           <button class="pick" data-type="treinamento"><span class="ico">📚</span>Treinamento</button>
           <button class="pick" data-type="viagem"><span class="ico">✈️</span>Viagem</button>
-          <button class="pick" data-type="call"><span class="ico">💻</span>Call</button>
+          <button class="pick" data-type="call"><span class="ico">📣</span>Ação</button>
           <button class="pick" data-type="aniversario"><span class="ico">🎂</span>Aniversário</button>
           <button class="pick" data-type="outro"><span class="ico">✦</span>Outro</button>
         </div>
@@ -1454,7 +1454,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
       <div class="form-group">
         <label>Descrição / notas</label>
-        <textarea id="eventDesc" placeholder="Detalhes adicionais..." maxlength="300"></textarea>
+        <textarea id="eventDesc" placeholder="Detalhes adicionais..." maxlength="600" rows="6" style="min-height:130px"></textarea>
       </div>
 
       <div class="form-group">
@@ -1944,7 +1944,7 @@ const EVENT_TYPES = {
   treinamento:{ label:'Treinamento', ico:'📚' },
   viagem:     { label:'Viagem',      ico:'✈️' },
   aniversario:{ label:'Aniversário', ico:'🎂' },
-  call:       { label:'Call',        ico:'💻' },
+  call:       { label:'Ação',        ico:'📣' },
   outro:      { label:'Outro',       ico:'✦' }
 };
 
@@ -4583,7 +4583,7 @@ async function setupAccounts(){
   const apiKey = firebaseConfig.apiKey;
   const url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey;
   const passwords = {
-    admin:'1302', joao:'1010', thayane:'1212', lianda:'2323', ravy:'8080'
+    admin:'1302', joao:'9065', thayane:'5641', lianda:'2967', ravy:'3301'
   };
   let ok = 0;
   const pinMapData = {};
