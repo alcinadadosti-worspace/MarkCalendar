@@ -4844,7 +4844,8 @@ function renderRequestBadge(){
   if(!btn) return;
   if(state.role === 'admin'){
     btn.style.display = '';
-    const pending = (state.requests||[]).filter(r => r.status === 'pending').length;
+    // conta só as pendentes ainda não vistas (abrir o sininho marca como vistas)
+    const pending = (state.requests||[]).filter(r => r.status === 'pending' && !r.seen).length;
     if(pending > 0){ badge.style.display = 'flex'; badge.textContent = pending; }
     else { badge.style.display = 'none'; }
   } else { btn.style.display = 'none'; }
@@ -4927,6 +4928,11 @@ function openRequestsModal(){
     b.addEventListener('click', () => resolveRequest(b.dataset.reqDeny, 'denied'));
   });
   $('#requestsModal').classList.add('open');
+  // marcar pendentes como vistas para limpar o badge do sininho (volta a acender se chegar algo novo)
+  let seenChanged = false;
+  (state.requests||[]).forEach(r => { if(r.status === 'pending' && !r.seen){ r.seen = true; seenChanged = true; } });
+  if(seenChanged){ save('requests'); }
+  renderRequestBadge();
 }
 
 function resolveRequest(reqId, status){
