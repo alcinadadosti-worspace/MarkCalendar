@@ -1341,6 +1341,8 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
     <div class="warn-box" id="modalHoliday" style="display:none"></div>
 
+    <div id="folgaInfo" style="display:none;margin-bottom:14px"></div>
+
     <div id="existingEventsWrap"></div>
 
     <div id="adminForm">
@@ -3501,6 +3503,7 @@ function openModal(key){
   if(holiday){ holEl.style.display='block'; holEl.textContent = `Feriado: ${holiday}`; }
   else holEl.style.display = 'none';
 
+  renderFolgaInfo();
   renderExistingEvents();
 
   if(state.role === 'admin'){
@@ -4763,6 +4766,26 @@ function addTaskAssign(){
 function folgaCollabKey(entry){ return typeof entry === 'string' ? entry : (entry && entry.c); }
 function folgaTipo(entry){ return typeof entry === 'string' ? 'integral' : ((entry && entry.t) || 'integral'); }
 
+// Resumo de folga do dia, visivel para todos (inclusive colaboradores)
+function renderFolgaInfo(){
+  const box = $('#folgaInfo');
+  if(!box) return;
+  const list = (state.folgas || {})[activeDateKey] || [];
+  if(!list.length){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  const items = list.map(entry => {
+    const ci = COLLABS[folgaCollabKey(entry)];
+    if(!ci) return '';
+    const tipo = folgaTipo(entry);
+    const ico = tipo === 'parcial' ? '🌗' : '🏖️';
+    const label = tipo === 'parcial' ? 'folga parcial' : 'folga integral';
+    return `<span class="folga-mark" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink);font-size:12px;padding:4px 9px;border-radius:6px">${ico} ${ci.name} — ${label}</span>`;
+  }).filter(Boolean).join('');
+  if(!items){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  box.innerHTML = `<h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:15px;margin:0 0 6px;letter-spacing:-0.01em">🏖️ Folgas do dia</h4>`
+    + `<div style="display:flex;flex-wrap:wrap;gap:6px">${items}</div>`;
+}
+
 function renderFolgaPicker(){
   const picker = $('#folgaPicker');
   if(!picker || !activeDateKey) return;
@@ -4811,6 +4834,7 @@ function toggleFolga(collab){
   }
   save('folgas');
   renderFolgaPicker();
+  renderFolgaInfo();
   render();
 }
 
@@ -4827,6 +4851,7 @@ function setFolgaTipo(collab, tipo){
   toast(`Folga de ${collabName}: ${tipo}`);
   save('folgas');
   renderFolgaPicker();
+  renderFolgaInfo();
   render();
 }
 
