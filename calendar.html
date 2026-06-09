@@ -3145,7 +3145,7 @@ function renderMonth(){
       if(!ci) return;
       const tipo = folgaTipo(entry);
       const ico = tipo === 'parcial' ? '🌗' : '🏖️';
-      const titulo = tipo === 'parcial' ? `${ci.name} em folga parcial` : `${ci.name} em folga`;
+      const titulo = tipo === 'parcial' ? `${ci.name} em folga parcial (${folgaPeriodoLabel(entry)})` : `${ci.name} em folga`;
       marks.innerHTML += `<span class="folga-mark" title="${titulo}" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink)">${ico}${ci.initial}</span>`;
     });
     const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
@@ -4762,9 +4762,12 @@ function addTaskAssign(){
   input.focus();
 }
 
-// Folgas: cada entrada pode ser string (formato antigo = integral) ou {c, t}
+// Folgas: cada entrada pode ser string (formato antigo = integral) ou {c, t, p}
+// t: 'integral'|'parcial'; p (so parcial): 'manha'|'tarde'
 function folgaCollabKey(entry){ return typeof entry === 'string' ? entry : (entry && entry.c); }
 function folgaTipo(entry){ return typeof entry === 'string' ? 'integral' : ((entry && entry.t) || 'integral'); }
+function folgaPeriodo(entry){ return (entry && typeof entry === 'object' && entry.p) || 'manha'; }
+function folgaPeriodoLabel(entry){ return folgaPeriodo(entry) === 'tarde' ? 'tarde' : 'manhã'; }
 
 // Resumo de folga do dia, visivel para todos (inclusive colaboradores)
 function renderFolgaInfo(){
@@ -4777,7 +4780,7 @@ function renderFolgaInfo(){
     if(!ci) return '';
     const tipo = folgaTipo(entry);
     const ico = tipo === 'parcial' ? '🌗' : '🏖️';
-    const label = tipo === 'parcial' ? 'folga parcial' : 'folga integral';
+    const label = tipo === 'parcial' ? `folga parcial (${folgaPeriodoLabel(entry)})` : 'folga integral';
     return `<span class="folga-mark" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink);font-size:12px;padding:4px 9px;border-radius:6px">${ico} ${ci.name} — ${label}</span>`;
   }).filter(Boolean).join('');
   if(!items){ box.style.display = 'none'; box.innerHTML = ''; return; }
@@ -4797,6 +4800,7 @@ function renderFolgaPicker(){
       const entry = onFolga.find(e => folgaCollabKey(e) === k);
       const sel = !!entry;
       const tipo = sel ? folgaTipo(entry) : null;
+      const periodo = sel ? folgaPeriodo(entry) : null;
       const photo = info.photo ? `<img src="${info.photo}" alt="">` : '';
       const ico = sel ? (tipo === 'parcial' ? ' 🌗' : ' 🏖️') : '';
       const pill = `<button type="button" class="folga-pick${sel?' selected':''}" data-folga-collab="${k}">${photo}${info.name}${ico}</button>`;
@@ -4804,13 +4808,20 @@ function renderFolgaPicker(){
         + `<button type="button" data-folga-tipo="integral" data-collab="${k}" class="${tipo==='integral'?'on':''}">Integral</button>`
         + `<button type="button" data-folga-tipo="parcial" data-collab="${k}" class="${tipo==='parcial'?'on':''}">Parcial</button>`
         + `</span>` : '';
-      return `<span class="folga-item">${pill}${toggle}</span>`;
+      const periodoToggle = (sel && tipo === 'parcial') ? `<span class="folga-tipo">`
+        + `<button type="button" data-folga-periodo="manha" data-collab="${k}" class="${periodo==='manha'?'on':''}">🌅 Manhã</button>`
+        + `<button type="button" data-folga-periodo="tarde" data-collab="${k}" class="${periodo==='tarde'?'on':''}">🌇 Tarde</button>`
+        + `</span>` : '';
+      return `<span class="folga-item">${pill}${toggle}${periodoToggle}</span>`;
     }).join('');
   picker.querySelectorAll('[data-folga-collab]').forEach(b => {
     b.addEventListener('click', () => toggleFolga(b.dataset.folgaCollab));
   });
   picker.querySelectorAll('[data-folga-tipo]').forEach(b => {
     b.addEventListener('click', () => setFolgaTipo(b.dataset.collab, b.dataset.folgaTipo));
+  });
+  picker.querySelectorAll('[data-folga-periodo]').forEach(b => {
+    b.addEventListener('click', () => setFolgaPeriodo(b.dataset.collab, b.dataset.folgaPeriodo));
   });
 }
 
@@ -4845,10 +4856,34 @@ function setFolgaTipo(collab, tipo){
   const idx = list.findIndex(e => folgaCollabKey(e) === collab);
   if(idx < 0) return;
   if(folgaTipo(list[idx]) === tipo) return;
-  list[idx] = { c: collab, t: tipo };
   const collabName = COLLABS[collab]?.name || collab;
-  logHistory(`🏖️ Folga de ${collabName} em ${activeDateKey} definida como ${tipo}`);
-  toast(`Folga de ${collabName}: ${tipo}`);
+  if(tipo === 'parcial'){
+    const periodo = folgaPeriodo(list[idx]); // mantem periodo se ja existir
+    list[idx] = { c: collab, t: 'parcial', p: periodo };
+    logHistory(`🏖️ Folga de ${collabName} em ${activeDateKey}: parcial (${folgaPeriodoLabel(list[idx])})`);
+    toast(`Folga de ${collabName}: parcial (${folgaPeriodoLabel(list[idx])})`);
+  } else {
+    list[idx] = { c: collab, t: 'integral' };
+    logHistory(`🏖️ Folga de ${collabName} em ${activeDateKey} definida como integral`);
+    toast(`Folga de ${collabName}: integral`);
+  }
+  save('folgas');
+  renderFolgaPicker();
+  renderFolgaInfo();
+  render();
+}
+
+function setFolgaPeriodo(collab, periodo){
+  if(state.role !== 'admin') return;
+  if(!activeDateKey || !state.folgas || !state.folgas[activeDateKey]) return;
+  const list = state.folgas[activeDateKey];
+  const idx = list.findIndex(e => folgaCollabKey(e) === collab);
+  if(idx < 0 || folgaTipo(list[idx]) !== 'parcial') return;
+  if(folgaPeriodo(list[idx]) === periodo) return;
+  list[idx] = { c: collab, t: 'parcial', p: periodo };
+  const collabName = COLLABS[collab]?.name || collab;
+  logHistory(`🏖️ Folga parcial de ${collabName} em ${activeDateKey}: ${folgaPeriodoLabel(list[idx])}`);
+  toast(`Folga de ${collabName}: ${folgaPeriodoLabel(list[idx])}`);
   save('folgas');
   renderFolgaPicker();
   renderFolgaInfo();
