@@ -461,6 +461,12 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .folga-pick.selected{background:#FFE082;color:#5C4A00;border-color:#5C4A00;font-weight:600}
 [data-theme="dark"] .folga-pick.selected{background:#5C4A00;color:#FFE082;border-color:#FFE082}
 .folga-pick img{width:20px;height:20px;border-radius:50%;object-fit:cover}
+.folga-item{display:inline-flex;align-items:center;gap:4px}
+.folga-tipo{display:inline-flex;border:1.5px solid var(--ink-soft);border-radius:8px;overflow:hidden}
+.folga-tipo button{border:none;background:var(--card);color:var(--ink-soft);font-size:11px;font-weight:600;padding:6px 9px;cursor:pointer;line-height:1.2;transition:background .15s ease}
+.folga-tipo button:hover{background:var(--bg-2)}
+.folga-tipo button.on{background:#FFE082;color:#5C4A00}
+[data-theme="dark"] .folga-tipo button.on{background:#5C4A00;color:#FFE082}
 .event .priority-chip{font-size:8px;padding:0 3px;letter-spacing:0;border-width:1px;line-height:1.4}
 .week-event .priority-chip{font-size:8px;padding:0 3px;letter-spacing:0;border-width:1px;line-height:1.4}
 .day-note-preview-ico{font-size:9px;flex-shrink:0}
@@ -1477,7 +1483,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
       <div id="folgaWrap" style="margin-top:20px;padding-top:16px;border-top:1.5px dashed var(--ink-soft)">
         <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0 0 4px;letter-spacing:-0.01em">🏖️ Folga do dia</h4>
-        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Marque quem esta de folga. Folgas nao contam como carga do mes.</p>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Marque quem esta de folga e escolha se e integral (🏖️) ou parcial (🌗). Folgas nao contam como carga do mes.</p>
         <div id="folgaPicker" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
     </div>
@@ -2062,7 +2068,7 @@ let state = {
   reminders: {},          // { 'eventId': { collab: minutos } }
   kudos: [],              // { id, from, to, text, when }
   messages: [],           // { id, from, to, text, when, read }
-  folgas: {},             // { 'YYYY-MM-DD': ['joao', 'lianda'] } - dias de folga (nao contam como carga)
+  folgas: {},             // { 'YYYY-MM-DD': [{c:'joao',t:'integral'}, {c:'lianda',t:'parcial'}] } - dias de folga (string antiga = integral)
   userPriorities: {}      // { joao: { 'eventId': 'high', ... } } - prioridade pessoal de cada usuario para cada evento
 };
 
@@ -3131,10 +3137,14 @@ function renderMonth(){
     if(bdayCol && !muted) marks.innerHTML += `<span class="bday" title="Aniversário de ${COLLABS[bdayCol].name}">🎂</span>`;
     // folgas: badge por colaborador em folga neste dia
     const folgaList = (state.folgas || {})[key] || [];
-    folgaList.forEach(c => {
+    folgaList.forEach(entry => {
+      const c = folgaCollabKey(entry);
       const ci = COLLABS[c];
       if(!ci) return;
-      marks.innerHTML += `<span class="folga-mark" title="${ci.name} em folga" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink)">🏖️${ci.initial}</span>`;
+      const tipo = folgaTipo(entry);
+      const ico = tipo === 'parcial' ? '🌗' : '🏖️';
+      const titulo = tipo === 'parcial' ? `${ci.name} em folga parcial` : `${ci.name} em folga`;
+      marks.innerHTML += `<span class="folga-mark" title="${titulo}" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink)">${ico}${ci.initial}</span>`;
     });
     const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
     let notePreviewText = '';
@@ -4749,6 +4759,10 @@ function addTaskAssign(){
   input.focus();
 }
 
+// Folgas: cada entrada pode ser string (formato antigo = integral) ou {c, t}
+function folgaCollabKey(entry){ return typeof entry === 'string' ? entry : (entry && entry.c); }
+function folgaTipo(entry){ return typeof entry === 'string' ? 'integral' : ((entry && entry.t) || 'integral'); }
+
 function renderFolgaPicker(){
   const picker = $('#folgaPicker');
   if(!picker || !activeDateKey) return;
@@ -4757,12 +4771,23 @@ function renderFolgaPicker(){
   picker.innerHTML = Object.entries(COLLABS)
     .filter(([k]) => k !== 'todos')
     .map(([k, info]) => {
-      const sel = onFolga.includes(k);
+      const entry = onFolga.find(e => folgaCollabKey(e) === k);
+      const sel = !!entry;
+      const tipo = sel ? folgaTipo(entry) : null;
       const photo = info.photo ? `<img src="${info.photo}" alt="">` : '';
-      return `<button type="button" class="folga-pick${sel?' selected':''}" data-folga-collab="${k}">${photo}${info.name}${sel?' 🏖️':''}</button>`;
+      const ico = sel ? (tipo === 'parcial' ? ' 🌗' : ' 🏖️') : '';
+      const pill = `<button type="button" class="folga-pick${sel?' selected':''}" data-folga-collab="${k}">${photo}${info.name}${ico}</button>`;
+      const toggle = sel ? `<span class="folga-tipo">`
+        + `<button type="button" data-folga-tipo="integral" data-collab="${k}" class="${tipo==='integral'?'on':''}">Integral</button>`
+        + `<button type="button" data-folga-tipo="parcial" data-collab="${k}" class="${tipo==='parcial'?'on':''}">Parcial</button>`
+        + `</span>` : '';
+      return `<span class="folga-item">${pill}${toggle}</span>`;
     }).join('');
   picker.querySelectorAll('[data-folga-collab]').forEach(b => {
     b.addEventListener('click', () => toggleFolga(b.dataset.folgaCollab));
+  });
+  picker.querySelectorAll('[data-folga-tipo]').forEach(b => {
+    b.addEventListener('click', () => setFolgaTipo(b.dataset.collab, b.dataset.folgaTipo));
   });
 }
 
@@ -4772,7 +4797,7 @@ function toggleFolga(collab){
   if(!state.folgas) state.folgas = {};
   if(!state.folgas[activeDateKey]) state.folgas[activeDateKey] = [];
   const list = state.folgas[activeDateKey];
-  const idx = list.indexOf(collab);
+  const idx = list.findIndex(e => folgaCollabKey(e) === collab);
   const collabName = COLLABS[collab]?.name || collab;
   if(idx >= 0){
     list.splice(idx, 1);
@@ -4780,10 +4805,26 @@ function toggleFolga(collab){
     logHistory(`🏖️ ${collabName} removido(a) da folga em ${activeDateKey}`);
     toast(`${collabName} nao esta mais em folga`);
   } else {
-    list.push(collab);
-    logHistory(`🏖️ ${collabName} de folga em ${activeDateKey}`);
-    toast(`${collabName} marcado(a) de folga`);
+    list.push({ c: collab, t: 'integral' });
+    logHistory(`🏖️ ${collabName} de folga integral em ${activeDateKey}`);
+    toast(`${collabName} marcado(a) de folga integral`);
   }
+  save('folgas');
+  renderFolgaPicker();
+  render();
+}
+
+function setFolgaTipo(collab, tipo){
+  if(state.role !== 'admin') return;
+  if(!activeDateKey || !state.folgas || !state.folgas[activeDateKey]) return;
+  const list = state.folgas[activeDateKey];
+  const idx = list.findIndex(e => folgaCollabKey(e) === collab);
+  if(idx < 0) return;
+  if(folgaTipo(list[idx]) === tipo) return;
+  list[idx] = { c: collab, t: tipo };
+  const collabName = COLLABS[collab]?.name || collab;
+  logHistory(`🏖️ Folga de ${collabName} em ${activeDateKey} definida como ${tipo}`);
+  toast(`Folga de ${collabName}: ${tipo}`);
   save('folgas');
   renderFolgaPicker();
   render();
