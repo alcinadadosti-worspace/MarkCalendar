@@ -1,4 +1,4 @@
-var CACHE_NAME = 'cal-equipe-v5';
+var CACHE_NAME = 'cal-equipe-v6';
 var STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -10,7 +10,8 @@ var STATIC_ASSETS = [
   '/João.jpg',
   '/Thayane.png',
   '/Lianda.png',
-  '/Ravy.jpg'
+  '/Ravy.jpg',
+  '/sabrina.png'
 ];
 
 self.addEventListener('install', function(e) {

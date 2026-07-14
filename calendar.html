@@ -33,6 +33,7 @@
   --c-thayane:#F4C2D7;     --c-thayane-ink:#6B1E47;
   --c-lianda:#FFD98A;      --c-lianda-ink:#6B4A00;
   --c-ravy:#B4E8B4;        --c-ravy-ink:#1E5630;
+  --c-sabrina:#FFC2A8;     --c-sabrina-ink:#7A3418;
   --c-todos:#D4B4F0;       --c-todos-ink:#3B1A6B;
 
   --radius:6px;
@@ -492,6 +493,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .event.color-thayane {background:var(--c-thayane); color:var(--c-thayane-ink)}
 .event.color-lianda  {background:var(--c-lianda);  color:var(--c-lianda-ink)}
 .event.color-ravy    {background:var(--c-ravy);    color:var(--c-ravy-ink)}
+.event.color-sabrina {background:var(--c-sabrina); color:var(--c-sabrina-ink)}
 .event.color-todos   {background:var(--c-todos);   color:var(--c-todos-ink)}
 .event.dimmed{opacity:.25}
 .event.conflict::after{
@@ -593,6 +595,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .pick[data-collab="thayane"].selected {background:var(--c-thayane)}
 .pick[data-collab="lianda"].selected  {background:var(--c-lianda)}
 .pick[data-collab="ravy"].selected    {background:var(--c-ravy)}
+.pick[data-collab="sabrina"].selected {background:var(--c-sabrina)}
 .pick[data-collab="todos"].selected {background:var(--c-todos)}
 .pick[data-type].selected{background:var(--bg-2)}
 
@@ -1380,6 +1383,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
             <option value="thayane">Thayane</option>
             <option value="lianda">Lianda</option>
             <option value="ravy">Ravy</option>
+            <option value="sabrina">Sabrina</option>
             <option value="todos">★ Todos (equipe inteira)</option>
           </select>
           <select id="taskPrioritySelect" style="padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
@@ -1757,6 +1761,13 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         <input type="color" id="color-ravy">
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Sabrina</label>
+        <input type="color" id="color-sabrina">
+      </div>
+      <div class="form-group"></div>
+    </div>
 
     <div class="modal-actions">
       <button class="btn" id="settingsReset">Resetar cores</button>
@@ -1789,7 +1800,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       <button class="btn primary" id="loginSubmit">Entrar</button>
     </div>
     <div id="setupWrap" style="display:none;margin-top:12px;border-top:1px dashed var(--muted);padding-top:12px;text-align:center">
-      <p style="font-size:11px;color:var(--ink-faint);margin-bottom:8px;font-style:italic">Primeira vez? Configure as contas.</p>
+      <p style="font-size:11px;color:var(--ink-faint);margin-bottom:8px;font-style:italic">Primeira vez ou entrou alguém novo no time? Configure as contas.</p>
       <button class="btn small" id="setupBtn">Configurar contas</button>
     </div>
   </div>
@@ -1896,7 +1907,8 @@ const AUTH_USERS = {
   joao:    { email:'joao@equipe.cal',    role:'viewer', collabKey:'joao',  name:'João' },
   thayane: { email:'thayane@equipe.cal', role:'viewer', collabKey:'thayane', name:'Thayane' },
   lianda:  { email:'lianda@equipe.cal',  role:'viewer', collabKey:'lianda', name:'Lianda' },
-  ravy:    { email:'ravy@equipe.cal',    role:'viewer', collabKey:'ravy',  name:'Ravy' }
+  ravy:    { email:'ravy@equipe.cal',    role:'viewer', collabKey:'ravy',  name:'Ravy' },
+  sabrina: { email:'sabrina@equipe.cal', role:'viewer', collabKey:'sabrina', name:'Sabrina' }
 };
 function authUserByEmail(email){ return Object.values(AUTH_USERS).find(function(u){ return u.email === email; }); }
 function pinToPassword(pin){ return pin + 'eq'; }
@@ -1938,6 +1950,7 @@ const COLLABS = {
   thayane: { name:'Thayane', color:'color-thayane', cssVar:'--c-thayane', initial:'T', photo:'Thayane.png', homeCity:'penedo' },
   lianda:  { name:'Lianda',  color:'color-lianda',  cssVar:'--c-lianda',  initial:'L', photo:'Lianda.png',  homeCity:'penedo' },
   ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R', photo:'Ravy.jpg',    homeCity:'penedo' },
+  sabrina: { name:'Sabrina', color:'color-sabrina', cssVar:'--c-sabrina', initial:'S', photo:'sabrina.png', homeCity:'penedo' },
   todos:   { name:'Todos',  color:'color-todos',   cssVar:'--c-todos',   initial:'★', photo:'' }
 };
 const ADMIN_USER = { name:'Suzana', photo:'Suzana.png' };
@@ -2404,7 +2417,7 @@ function countEvent(e, counts){
 }
 
 function eventsByCollabInMonth(y, m){
-  const counts = {joao:0, thayane:0, lianda:0, ravy:0};
+  const counts = {joao:0, thayane:0, lianda:0, ravy:0, sabrina:0};
   Object.keys(state.events).forEach(k => {
     const [yy,mm] = k.split('-').map(Number);
     if(yy===y && mm===m+1){
@@ -2415,7 +2428,7 @@ function eventsByCollabInMonth(y, m){
 }
 
 function eventsByCollabInWeek(weekStart){
-  const counts = {joao:0,thayane:0,lianda:0,ravy:0};
+  const counts = {joao:0,thayane:0,lianda:0,ravy:0,sabrina:0};
   for(let i=0;i<7;i++){
     const d = new Date(weekStart); d.setDate(d.getDate()+i);
     const k = keyFromDate(d);
@@ -3102,7 +3115,7 @@ function renderMonth(){
     cell.dataset.key = key;
 
     // workload bar (top)
-    const dayCounts = {joao:0,thayane:0,lianda:0,ravy:0};
+    const dayCounts = {joao:0,thayane:0,lianda:0,ravy:0,sabrina:0};
     (state.events[key]||[]).forEach(e => {
       if(e.tasks && e.tasks.length){
         const seen = new Set();
@@ -4580,7 +4593,9 @@ async function openLogin(){
   setTimeout(()=>$('#loginPwd').focus(), 100);
   try{
     const snap = await db.collection('pinMap').doc('map').get();
-    if(!snap.exists) $('#setupWrap').style.display = 'block';
+    if(!snap.exists){ $('#setupWrap').style.display = 'block'; return; }
+    const missing = await pinMapMissingUsers(snap.data() || {});
+    if(missing.length) $('#setupWrap').style.display = 'block';
   }catch(e){
     $('#setupWrap').style.display = 'block';
   }
@@ -4592,12 +4607,25 @@ async function hashPin(pin){
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
+const SETUP_PINS = {
+  admin:'1302', joao:'9065', thayane:'5641', lianda:'2967', ravy:'3301', sabrina:'4728'
+};
+
+// pinMap só tem quem já foi configurado. Se entrou gente nova no time, ela fica
+// de fora do mapa e não consegue logar até setupAccounts() rodar de novo.
+async function pinMapMissingUsers(map){
+  const missing = [];
+  for(const id of Object.keys(AUTH_USERS)){
+    const h = await hashPin(SETUP_PINS[id]);
+    if(!map[h]) missing.push(id);
+  }
+  return missing;
+}
+
 async function setupAccounts(){
   const apiKey = firebaseConfig.apiKey;
   const url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey;
-  const passwords = {
-    admin:'1302', joao:'9065', thayane:'5641', lianda:'2967', ravy:'3301'
-  };
+  const passwords = SETUP_PINS;
   let ok = 0;
   const pinMapData = {};
   for(const [id, info] of Object.entries(AUTH_USERS)){
@@ -4680,7 +4708,8 @@ const WELCOME_MESSAGES = {
   joao: 'Bora fazer acontecer, João! Confira seus eventos do dia.',
   thayane: 'Oi Thayane! Veja o que tem programado pra hoje.',
   lianda: 'E aí Lianda! Seu calendário está te esperando.',
-  ravy: 'Fala Ravy! Dá uma olhada no que vem por aí.'
+  ravy: 'Fala Ravy! Dá uma olhada no que vem por aí.',
+  sabrina: 'Oi Sabrina! Seu dia já está montado, dá uma conferida.'
 };
 
 function applyUserRole(userInfo){
@@ -5925,7 +5954,7 @@ function bindEvents(){
   $('#settingsReset').addEventListener('click', () => {
     if(state.role !== 'admin'){ toast('Apenas a gestora pode resetar cores'); return; }
     state.customColors = {};
-    ['--c-joao','--c-thayane','--c-lianda','--c-ravy','--c-joao-ink','--c-thayane-ink','--c-lianda-ink','--c-ravy-ink']
+    ['--c-joao','--c-thayane','--c-lianda','--c-ravy','--c-sabrina','--c-joao-ink','--c-thayane-ink','--c-lianda-ink','--c-ravy-ink','--c-sabrina-ink']
       .forEach(v => document.documentElement.style.removeProperty(v));
     save('customColors');
     toast('Cores resetadas');
