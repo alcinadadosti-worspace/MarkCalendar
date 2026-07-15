@@ -2117,6 +2117,12 @@ const SEED_EQUIPE = {
 // no lugar porque bindEvents() cria closures sobre ele antes do login.
 const COLLABS = {};
 const TODOS_INFO = { name:'Todos', color:'color-todos', cssVar:'--c-todos', initial:'★', photo:'', ativo:true };
+// A Suzana nao e colaboradora (nao esta em state.equipe), mas precisa existir em COLLABS
+// pra poder receber tarefa: o chip do calendario faz COLLABS[ev.collab].color sem guarda.
+// Fica FORA de activeCollabs() - ver o filtro la - pra nao aparecer na equipe, na folga,
+// nos kudos, nas cores etc., onde ela ja e tratada a parte.
+const ADMIN_KEY = 'admin';
+const ADMIN_INFO = { name:'Suzana', color:'color-admin', cssVar:'--c-admin', initial:'S', photo:'Suzana.png', cor:'#D4B4F0', ativo:true };
 
 // A equipe efetiva: o que a Suzana gravou ou, enquanto nao gravou nada, o seed.
 function equipeAtual(){
@@ -2142,6 +2148,7 @@ function rebuildCollabs(){
     };
   });
   COLLABS.todos = { ...TODOS_INFO };
+  COLLABS[ADMIN_KEY] = { ...ADMIN_INFO, photo: ADMIN_USER.photo };
   injectCollabCSS();
 }
 
@@ -2159,11 +2166,13 @@ function corSugerida(){
   return PALETA_SUGERIDA.find(c => !usadas.includes(c.toLowerCase())) || PALETA_SUGERIDA[0];
 }
 
-// Chaves de quem esta ativo. 'todos' entra so quando pedido.
+// Chaves de quem esta ativo. 'todos' e 'admin' sao pseudo-entradas e so entram quando
+// pedidas explicitamente - senao a Suzana apareceria como colaboradora em toda parte.
 function activeCollabs(opts){
   const o = opts || {};
   return Object.keys(COLLABS).filter(k => {
     if(k === 'todos') return !!o.includeTodos;
+    if(k === ADMIN_KEY) return !!o.includeAdmin;
     if(!COLLABS[k].ativo && !o.includeInativos) return false;
     if(o.exclude && o.exclude === k) return false;
     return true;
@@ -5431,6 +5440,8 @@ function renderTarefaCollabSelect(){
   const anterior = sel.value;
   sel.innerHTML = activeCollabEntries()
     .map(([k, c]) => `<option value="${k}">${escapeHtml(c.name)}</option>`).join('')
+    // a Suzana pode delegar pra si mesma
+    + `<option value="${ADMIN_KEY}">${escapeHtml(ADMIN_USER.name)} (você)</option>`
     + '<option value="todos">★ Todos (equipe inteira)</option>';
   if(anterior && sel.querySelector(`option[value="${anterior}"]`)) sel.value = anterior;
 }
