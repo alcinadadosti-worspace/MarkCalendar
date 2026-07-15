@@ -4080,6 +4080,11 @@ function resetForm(){
 
 function fillFormFor(ev){
   if(state.role !== 'admin') return;
+  // A lista de cartoes fica ACIMA das abas, entao da pra clicar "Editar" estando em
+  // Tarefa/Reuniao/Ferias. Sem trazer pra aba Evento, o form era preenchido escondido:
+  // nada aparecia na tela e o app ficava em modo de edicao sem ela saber - o proximo
+  // "Adicionar evento" sobrescrevia este em vez de criar um novo.
+  setDayTab('evento');
   editingEvent = ev;
   $('#eventTitle').value = ev.title || '';
   $('#eventDesc').value = ev.desc || '';
