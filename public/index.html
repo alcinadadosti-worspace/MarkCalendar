@@ -1495,10 +1495,11 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       </div>
       </div><!-- /tabEvento -->
 
-      <!-- ABA TAREFA: cria um evento type:'tarefa' sem horario -->
+      <!-- ABA TAREFA: monta uma fila e delega tudo de uma vez. Cada pessoa recebe um
+           unico evento type:'tarefa' com a lista dela. -->
       <div id="tabTarefa" style="display:none">
-        <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:4px;letter-spacing:-0.01em">Delegar tarefa</h4>
-        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:14px;font-style:italic">A tarefa aparece no dia da pessoa, sem horário. Ela é notificada e marca como concluída.</p>
+        <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:4px;letter-spacing:-0.01em">Delegar tarefas</h4>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:14px;font-style:italic">Monte a lista — pode misturar pessoas — e delegue tudo de uma vez. Cada pessoa recebe as dela num só cartão, sem horário, e marca uma a uma.</p>
 
         <div class="form-row">
           <div class="form-group">
@@ -1517,7 +1518,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
         <div class="form-group">
           <label for="tarefaTexto">Tarefa</label>
-          <input type="text" id="tarefaTexto" placeholder="Ex.: Gravar reels da promoção" maxlength="80">
+          <div style="display:flex;gap:6px">
+            <input type="text" id="tarefaTexto" placeholder="Ex.: Gravar reels da promoção" maxlength="80" style="flex:1">
+            <button class="btn small primary" id="tarefaAddBtn" type="button">+ Adicionar</button>
+          </div>
         </div>
 
         <div class="task-quick-picker" id="tarefaQuickPicker" style="margin-bottom:14px">
@@ -1528,8 +1532,13 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
           <button type="button" class="task-quick" data-tq="Organização">📋 Organização</button>
         </div>
 
+        <div class="form-group">
+          <label>Na fila</label>
+          <div id="tarefaFila" style="display:flex;flex-direction:column;gap:4px"></div>
+        </div>
+
         <div class="modal-actions">
-          <button class="btn primary" id="tarefaSaveBtn">Delegar tarefa</button>
+          <button class="btn primary" id="tarefaSaveBtn">Delegar tarefas</button>
         </div>
       </div>
 
@@ -3960,6 +3969,9 @@ function openModal(key){
     // sempre volta pra Evento: resetForm() nao mexe em aba, e o foco em #eventTitle
     // logo abaixo pularia pra um campo escondido se outra aba estivesse ativa.
     setDayTab('evento');
+    // fila e por dia: nao pode vazar de um dia pro outro
+    filaTarefas = [];
+    renderFilaTarefas();
     $('#tarefaTexto').value = '';
     $('#reuniaoAssunto').value = '';
     reuniaoErro('');
@@ -4142,7 +4154,8 @@ function renderExistingEvents(){
     }
 
     let rsvpHTML = '';
-    if(state.role === 'viewer' && evVisibleTo(ev, state.viewerAs)){
+    // tarefa nao tem presenca a confirmar: o que ela tem e checkbox de concluida
+    if(state.role === 'viewer' && ev.type !== 'tarefa' && evVisibleTo(ev, state.viewerAs)){
       if(myRSVP){
         rsvpHTML = `<div style="margin-top:4px"><span class="rsvp-status rsvp-${myRSVP==='yes'?'yes':'no'}">${myRSVP==='yes'?'✓ Presença confirmada':'✗ Presença recusada'}</span></div>`;
       } else {
@@ -5368,45 +5381,105 @@ function renderTarefaCollabSelect(){
   if(anterior && sel.querySelector(`option[value="${anterior}"]`)) sel.value = anterior;
 }
 
-// Tarefa = evento sem horario. Reaproveita o chip do calendario, a contagem de carga, a
-// busca e o push, em vez de criar um tipo de dado paralelo.
-function salvarTarefa(){
-  if(state.role !== 'admin' || !activeDateKey) return;
-  const collab = $('#tarefaCollab').value;
+// Fila de tarefas ainda nao delegadas: [{ collab, text, priority }]
+let filaTarefas = [];
+
+function nomeDe(k){ return k === 'todos' ? 'a equipe' : (COLLABS[k]?.name || k); }
+
+function renderFilaTarefas(){
+  const box = $('#tarefaFila');
+  const btn = $('#tarefaSaveBtn');
+  if(!box) return;
+  if(!filaTarefas.length){
+    box.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma tarefa na fila — adicione acima.</span>';
+    btn.disabled = true;
+    btn.textContent = 'Delegar tarefas';
+    return;
+  }
+  box.innerHTML = filaTarefas.map((t, i) => {
+    const c = COLLABS[t.collab];
+    const photo = c && c.photo
+      ? `<img src="${c.photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(${c.cssVar})">` : '';
+    return `<div class="task-item">
+      ${photo}<strong style="font-size:11px;min-width:60px">${escapeHtml(nomeDe(t.collab))}</strong>
+      <span class="task-text">${escapeHtml(t.text)}</span>
+      ${priorityChip(t.priority)}
+      <button class="task-remove" data-fila-idx="${i}" title="Remover">&times;</button>
+    </div>`;
+  }).join('');
+  btn.disabled = false;
+  btn.textContent = filaTarefas.length === 1 ? 'Delegar 1 tarefa' : `Delegar ${filaTarefas.length} tarefas`;
+}
+
+function addTarefaFila(){
   const texto = $('#tarefaTexto').value.trim();
-  const priority = $('#tarefaPrioridade').value;
   const input = $('#tarefaTexto');
   if(!texto){
     input.style.borderColor = 'var(--danger)';
     setTimeout(() => input.style.borderColor = '', 1200);
-    toast('Escreva a tarefa');
     return;
   }
-  const ev = {
-    id: uid(),
-    title: texto,
-    collab: collab,
-    type: 'tarefa',
-    startTime: '', endTime: '',
-    desc: '', link: '', location: '',
-    recurring: 'none',
-    pinned: false, private: false,
-    priority: priority,
-    createdAt: new Date().toISOString(),
-    rsvp: {}, comments: [], completed: false,
-    tasks: [{ id: uid(), collab: collab, text: texto, done: false, priority: priority }]
-  };
+  filaTarefas.push({
+    collab: $('#tarefaCollab').value,
+    text: texto,
+    priority: $('#tarefaPrioridade').value
+  });
+  input.value = '';
+  input.focus();
+  renderFilaTarefas();
+}
+
+// Tarefa = evento sem horario: reaproveita o chip do calendario, a contagem de carga, a
+// busca e o push, em vez de criar um tipo de dado paralelo. Uma pessoa = um cartao, entao
+// tarefas novas entram no cartao que ja existe naquele dia.
+function salvarTarefas(){
+  if(state.role !== 'admin' || !activeDateKey) return;
+  if(!filaTarefas.length){ toast('Adicione ao menos uma tarefa'); return; }
+
   if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
-  state.events[activeDateKey].push(ev);
+  const doDia = state.events[activeDateKey];
+
+  // agrupa por pessoa pra nao criar um cartao por tarefa
+  const porPessoa = {};
+  filaTarefas.forEach(t => (porPessoa[t.collab] = porPessoa[t.collab] || []).push(t));
+
+  Object.entries(porPessoa).forEach(([collab, itens]) => {
+    const novas = itens.map(t => ({
+      id: uid(), collab: collab, text: t.text, done: false, priority: t.priority
+    }));
+    const existente = doDia.find(e => e.type === 'tarefa' && e.collab === collab);
+    if(existente){
+      existente.tasks = (existente.tasks || []).concat(novas);
+    } else {
+      doDia.push({
+        id: uid(),
+        title: collab === 'todos' ? 'Tarefas da equipe' : `Tarefas de ${nomeDe(collab)}`,
+        collab: collab,
+        type: 'tarefa',
+        startTime: '', endTime: '',
+        desc: '', link: '', location: '',
+        recurring: 'none',
+        pinned: false, private: false,
+        createdAt: new Date().toISOString(),
+        rsvp: {}, comments: [], completed: false,
+        tasks: novas
+      });
+    }
+    const resumo = itens.map(t => t.text).join(', ');
+    logHistory(`✅ Delegou ${itens.length} tarefa(s) para ${nomeDe(collab)} em ${activeDateKey}: ${resumo}`);
+    const titulo = itens.length === 1 ? '✅ Nova tarefa' : `✅ ${itens.length} novas tarefas`;
+    if(collab === 'todos') activeCollabs().forEach(c => triggerPush(c, titulo, `${resumo} — ${activeDateKey}`));
+    else triggerPush(collab, titulo, `${resumo} — ${activeDateKey}`);
+  });
+
   save('events');
-
-  const quem = collab === 'todos' ? 'a equipe' : (COLLABS[collab]?.name || collab);
-  logHistory(`✅ Delegou "${texto}" para ${quem} em ${activeDateKey}`);
-  if(collab === 'todos') activeCollabs().forEach(c => triggerPush(c, '✅ Nova tarefa', `${texto} — ${activeDateKey}`));
-  else triggerPush(collab, '✅ Nova tarefa', `${texto} — ${activeDateKey}`);
-
-  toast(`Tarefa delegada para ${quem}`);
-  $('#tarefaTexto').value = '';
+  const n = filaTarefas.length;
+  const pessoas = Object.keys(porPessoa).length;
+  filaTarefas = [];
+  renderFilaTarefas();
+  toast(pessoas === 1
+    ? `${n} tarefa(s) delegada(s) para ${nomeDe(Object.keys(porPessoa)[0])}`
+    : `${n} tarefas delegadas para ${pessoas} pessoas`);
   renderExistingEvents();
   render();
 }
@@ -6504,13 +6577,21 @@ function bindEvents(){
     const b = e.target.closest('.day-tab');
     if(b) setDayTab(b.dataset.dtab);
   });
-  $('#tarefaSaveBtn').addEventListener('click', salvarTarefa);
-  $('#tarefaTexto').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); salvarTarefa(); } });
+  $('#tarefaAddBtn').addEventListener('click', addTarefaFila);
+  $('#tarefaSaveBtn').addEventListener('click', salvarTarefas);
+  // Enter adiciona na fila (nao delega): permite emendar varias sem tirar a mao do teclado
+  $('#tarefaTexto').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addTarefaFila(); } });
   $('#tarefaQuickPicker').addEventListener('click', e => {
     const b = e.target.closest('[data-tq]');
     if(!b) return;
     $('#tarefaTexto').value = b.dataset.tq;
-    $('#tarefaTexto').focus();
+    addTarefaFila();
+  });
+  $('#tarefaFila').addEventListener('click', e => {
+    const b = e.target.closest('[data-fila-idx]');
+    if(!b) return;
+    filaTarefas.splice(+b.dataset.filaIdx, 1);
+    renderFilaTarefas();
   });
   $('#reuniaoSaveBtn').addEventListener('click', salvarReuniao);
   $('#reuniaoPicker').addEventListener('click', e => {
