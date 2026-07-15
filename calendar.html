@@ -174,6 +174,11 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .weather-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1.5px solid var(--muted);padding-bottom:8px}
 .weather-tab{border:none;background:transparent;padding:8px 16px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:var(--ink-soft);transition:all .2s ease}
 .weather-tab.active{background:var(--ink);color:var(--bg)}
+/* abas do dia (admin): mesmo visual do modal de clima */
+.day-tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1.5px solid var(--muted);padding-bottom:8px}
+.day-tab{border:none;background:transparent;padding:8px 16px;border-radius:999px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:var(--ink-soft);transition:all .2s ease}
+.day-tab.active{background:var(--ink);color:var(--bg)}
+@media(max-width:600px){ .day-tab{padding:8px 10px;font-size:12px} }
 .weather-city{border:1.5px solid var(--muted);border-radius:8px;padding:14px;margin-bottom:10px;transition:border-color .2s}
 .weather-city-you{border-color:var(--ink);background:var(--bg-2)}
 .weather-city-head{display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -1350,6 +1355,13 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <div id="existingEventsWrap"></div>
 
     <div id="adminForm">
+      <div class="day-tabs" id="dayTabs">
+        <button class="day-tab active" data-dtab="evento" type="button">📅 Evento</button>
+        <button class="day-tab" data-dtab="tarefa" type="button">✅ Tarefa</button>
+        <button class="day-tab" data-dtab="reuniao" type="button">👥 Reunião</button>
+      </div>
+
+      <div id="tabEvento">
       <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:12px;letter-spacing:-0.01em">Novo evento</h4>
 
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px" id="templateBtns">
@@ -1480,6 +1492,82 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
       <div class="modal-actions">
         <button class="btn primary" id="saveBtn">Adicionar evento</button>
+      </div>
+      </div><!-- /tabEvento -->
+
+      <!-- ABA TAREFA: cria um evento type:'tarefa' sem horario -->
+      <div id="tabTarefa" style="display:none">
+        <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:4px;letter-spacing:-0.01em">Delegar tarefa</h4>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:14px;font-style:italic">A tarefa aparece no dia da pessoa, sem horário. Ela é notificada e marca como concluída.</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="tarefaCollab">Para quem</label>
+            <select id="tarefaCollab"></select>
+          </div>
+          <div class="form-group">
+            <label for="tarefaPrioridade">Prioridade</label>
+            <select id="tarefaPrioridade">
+              <option value="normal">Normal</option>
+              <option value="high">🟠 Alta</option>
+              <option value="urgent">🔴 Urgente</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="tarefaTexto">Tarefa</label>
+          <input type="text" id="tarefaTexto" placeholder="Ex.: Gravar reels da promoção" maxlength="80">
+        </div>
+
+        <div class="task-quick-picker" id="tarefaQuickPicker" style="margin-bottom:14px">
+          <button type="button" class="task-quick" data-tq="Criação">🎬 Criação</button>
+          <button type="button" class="task-quick" data-tq="Edição">✂️ Edição</button>
+          <button type="button" class="task-quick" data-tq="Captação">📸 Captação</button>
+          <button type="button" class="task-quick" data-tq="Postagem">📤 Postagem</button>
+          <button type="button" class="task-quick" data-tq="Organização">📋 Organização</button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn primary" id="tarefaSaveBtn">Delegar tarefa</button>
+        </div>
+      </div>
+
+      <!-- ABA REUNIAO: cria a reuniao direto, sem depender de aceite -->
+      <div id="tabReuniao" style="display:none">
+        <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:4px;letter-spacing:-0.01em">Marcar reunião</h4>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:14px;font-style:italic">A reunião entra no calendário na hora. A equipe é notificada e confirma presença.</p>
+
+        <div class="form-group">
+          <label>Com quem</label>
+          <div style="display:flex;gap:6px;margin-bottom:8px">
+            <button class="btn small" id="reuniaoTodosBtn" type="button">★ Todos</button>
+            <button class="btn small" id="reuniaoLimparBtn" type="button">Limpar</button>
+          </div>
+          <div id="reuniaoPicker" class="collab-picker"></div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="reuniaoStart">Início</label>
+            <input type="time" id="reuniaoStart" value="09:00">
+          </div>
+          <div class="form-group">
+            <label for="reuniaoEnd">Fim</label>
+            <input type="time" id="reuniaoEnd" value="10:00">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="reuniaoAssunto">Assunto</label>
+          <input type="text" id="reuniaoAssunto" placeholder="Ex.: Alinhamento da campanha" maxlength="60">
+        </div>
+
+        <div id="reuniaoErro" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;margin-bottom:8px"></div>
+
+        <div class="modal-actions">
+          <button class="btn primary" id="reuniaoSaveBtn">Marcar reunião</button>
+        </div>
       </div>
 
       <div id="folgaWrap" style="margin-top:20px;padding-top:16px;border-top:1.5px dashed var(--ink-soft)">
@@ -1887,9 +1975,14 @@ async function registerOneSignalUser(userKey){
   });
 }
 
+// window.meKey e definido la dentro do IIFE. Esta funcao vive FORA dele, entao nao
+// enxerga `state` - referenciar state aqui lancava ReferenceError e derrubava todo push
+// antes de enviar qualquer coisa.
 async function triggerPush(targetUserKey, title, body, opts = {}){
   if(!isOneSignalConfigured()) return;
-  if(!targetUserKey || targetUserKey === (state.viewerAs || (state.role === 'admin' ? 'admin' : null))) return;
+  if(!targetUserKey) return;
+  const me = typeof window.meKey === 'function' ? window.meKey() : null;
+  if(me && targetUserKey === me) return;   // nao notificar quem disparou
   try {
     const payload = {
       app_id: ONESIGNAL_APP_ID,
@@ -2067,6 +2160,9 @@ const EVENT_TYPES = {
   viagem:     { label:'Viagem',      ico:'✈️' },
   aniversario:{ label:'Aniversário', ico:'🎂' },
   call:       { label:'Ação',        ico:'📣' },
+  // criada pela aba Tarefas: e um evento sem horario, pra reaproveitar calendario,
+  // contagem de carga, busca e notificacao. Nao entra no #typePicker da aba Evento.
+  tarefa:     { label:'Tarefa',      ico:'✅' },
   outro:      { label:'Outro',       ico:'✦' }
 };
 
@@ -2191,6 +2287,10 @@ let state = {
 };
 
 state.current.setDate(1);
+
+// Ponte pro primeiro bloco <script>: triggerPush() vive fora deste IIFE e precisa saber
+// quem esta logado pra nao notificar a propria pessoa que disparou a acao.
+window.meKey = () => state.viewerAs || (state.role === 'admin' ? 'admin' : null);
 
 // ============ STORAGE ============
 async function loadAll(){
@@ -3857,6 +3957,12 @@ function openModal(key){
     renderTaskCollabSelect();
     resetForm();
     renderFolgaPicker();
+    // sempre volta pra Evento: resetForm() nao mexe em aba, e o foco em #eventTitle
+    // logo abaixo pularia pra um campo escondido se outra aba estivesse ativa.
+    setDayTab('evento');
+    $('#tarefaTexto').value = '';
+    $('#reuniaoAssunto').value = '';
+    reuniaoErro('');
   } else {
     $('#adminForm').style.display = 'none';
     if(state.viewMode === 'team'){
@@ -3932,6 +4038,14 @@ function fillFormFor(ev){
 
 function updatePickerSelections(){
   $$('.pick[data-type]').forEach(p => p.classList.toggle('selected', p.dataset.type === formSelectedType));
+}
+
+// Um colaborador pode cancelar uma reuniao que ele mesmo combinou com colegas (o fluxo
+// por consenso), mas nao uma que a gestora marcou.
+function podeCancelarReuniao(ev){
+  if(!ev || ev.type !== 'reuniao' || ev.collab !== 'todos') return false;
+  if(ev.criadoPor === 'admin') return false;
+  return !!(ev.rsvp && state.viewerAs && ev.rsvp[state.viewerAs] === 'yes');
 }
 
 function renderExistingEvents(){
@@ -4048,7 +4162,12 @@ function renderExistingEvents(){
           const icon = v === 'yes' ? '✓' : '✗';
           rsvpHTML += `<span class="rsvp-status rsvp-${v==='yes'?'yes':'no'}" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(${COLLABS[k].cssVar})">${icon} ${COLLABS[k].name}</span>`;
         });
-        const pending = activeCollabs().filter(k => !ev.rsvp[k]);
+        // reuniao com convidados: so eles ficam "pendentes". Sem isso a equipe inteira
+        // aparece como pendente numa reuniao de 2 pessoas.
+        const convidados = Array.isArray(ev.attendees)
+          ? ev.attendees.filter(k => k !== 'admin' && COLLABS[k])
+          : activeCollabs();
+        const pending = convidados.filter(k => !ev.rsvp[k]);
         pending.forEach(k => {
           rsvpHTML += `<span class="rsvp-status rsvp-pending" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(--muted);opacity:0.5">? ${COLLABS[k].name}</span>`;
         });
@@ -4090,7 +4209,7 @@ function renderExistingEvents(){
         }
       }
       const swapBtn = ev.collab !== 'todos' ? `<button class="btn small" data-act="swap" data-id="${ev.id}" data-key="${activeDateKey}">↔ Solicitar troca</button>` : '';
-      const isMyMeeting = ev.type === 'reuniao' && ev.collab === 'todos' && ev.rsvp && ev.rsvp[state.viewerAs] === 'yes';
+      const isMyMeeting = podeCancelarReuniao(ev);
       const cancelBtn = isMyMeeting ? `<button class="btn small danger" data-act="delete" data-id="${ev.id}">Cancelar reunião</button>` : '';
 
       // Preparado
@@ -4520,15 +4639,18 @@ function deleteEvent(id){
   if(!ev) return;
   // permissao: admin sempre, viewer so se for participante da reuniao
   if(state.role !== 'admin'){
-    const isMyMeeting = ev.type === 'reuniao' && ev.collab === 'todos' && ev.rsvp && ev.rsvp[state.viewerAs] === 'yes';
-    if(!isMyMeeting){ toast('Sem permissão para excluir'); return; }
+    if(!podeCancelarReuniao(ev)){ toast('Sem permissão para excluir'); return; }
   }
   if(!confirm(`Excluir "${ev.title}"?`)) return;
   state.events[activeDateKey] = list.filter(x => x.id !== id);
   if(state.events[activeDateKey].length === 0) delete state.events[activeDateKey];
-  // limpar request associado se for reuniao
-  const relReq = (state.requests||[]).find(r => r.type === 'meeting' && r.status === 'approved' && r.suggestedDate === activeDateKey);
-  if(relReq){ relReq.status = 'cancelled'; relReq.resolvedAt = new Date().toISOString(); save('requests'); }
+  // limpar request associado se for reuniao. O `ev.type === 'reuniao'` importa: sem ele,
+  // excluir QUALQUER evento cancelava um pedido de reuniao do mesmo dia que nada tinha a
+  // ver. Reuniao marcada pela gestora nao nasce de pedido, entao tambem nao mexe nisso.
+  if(ev.type === 'reuniao' && ev.criadoPor !== 'admin'){
+    const relReq = (state.requests||[]).find(r => r.type === 'meeting' && r.status === 'approved' && r.suggestedDate === activeDateKey);
+    if(relReq){ relReq.status = 'cancelled'; relReq.resolvedAt = new Date().toISOString(); save('requests'); }
+  }
   logHistory(`Excluiu "${ev.title}" (${COLLABS[ev.collab].name})`);
   save('events');
   toast('Evento excluído');
@@ -5221,6 +5343,140 @@ function renderTaskCollabSelect(){
     .map(([k, c]) => `<option value="${k}">${escapeHtml(c.name)}</option>`).join('')
     + '<option value="todos">★ Todos (equipe inteira)</option>';
   if(anterior && sel.querySelector(`option[value="${anterior}"]`)) sel.value = anterior;
+}
+
+// ============ ABAS DO DIA (admin) ============
+let dayTab = 'evento';
+
+function setDayTab(tab){
+  dayTab = tab;
+  $$('#dayTabs .day-tab').forEach(b => b.classList.toggle('active', b.dataset.dtab === tab));
+  $('#tabEvento').style.display  = tab === 'evento'  ? '' : 'none';
+  $('#tabTarefa').style.display  = tab === 'tarefa'  ? '' : 'none';
+  $('#tabReuniao').style.display = tab === 'reuniao' ? '' : 'none';
+  if(tab === 'tarefa') renderTarefaCollabSelect();
+  if(tab === 'reuniao') renderReuniaoPicker();
+}
+
+function renderTarefaCollabSelect(){
+  const sel = $('#tarefaCollab');
+  if(!sel) return;
+  const anterior = sel.value;
+  sel.innerHTML = activeCollabEntries()
+    .map(([k, c]) => `<option value="${k}">${escapeHtml(c.name)}</option>`).join('')
+    + '<option value="todos">★ Todos (equipe inteira)</option>';
+  if(anterior && sel.querySelector(`option[value="${anterior}"]`)) sel.value = anterior;
+}
+
+// Tarefa = evento sem horario. Reaproveita o chip do calendario, a contagem de carga, a
+// busca e o push, em vez de criar um tipo de dado paralelo.
+function salvarTarefa(){
+  if(state.role !== 'admin' || !activeDateKey) return;
+  const collab = $('#tarefaCollab').value;
+  const texto = $('#tarefaTexto').value.trim();
+  const priority = $('#tarefaPrioridade').value;
+  const input = $('#tarefaTexto');
+  if(!texto){
+    input.style.borderColor = 'var(--danger)';
+    setTimeout(() => input.style.borderColor = '', 1200);
+    toast('Escreva a tarefa');
+    return;
+  }
+  const ev = {
+    id: uid(),
+    title: texto,
+    collab: collab,
+    type: 'tarefa',
+    startTime: '', endTime: '',
+    desc: '', link: '', location: '',
+    recurring: 'none',
+    pinned: false, private: false,
+    priority: priority,
+    createdAt: new Date().toISOString(),
+    rsvp: {}, comments: [], completed: false,
+    tasks: [{ id: uid(), collab: collab, text: texto, done: false, priority: priority }]
+  };
+  if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
+  state.events[activeDateKey].push(ev);
+  save('events');
+
+  const quem = collab === 'todos' ? 'a equipe' : (COLLABS[collab]?.name || collab);
+  logHistory(`✅ Delegou "${texto}" para ${quem} em ${activeDateKey}`);
+  if(collab === 'todos') activeCollabs().forEach(c => triggerPush(c, '✅ Nova tarefa', `${texto} — ${activeDateKey}`));
+  else triggerPush(collab, '✅ Nova tarefa', `${texto} — ${activeDateKey}`);
+
+  toast(`Tarefa delegada para ${quem}`);
+  $('#tarefaTexto').value = '';
+  renderExistingEvents();
+  render();
+}
+
+function renderReuniaoPicker(){
+  const picker = $('#reuniaoPicker');
+  if(!picker) return;
+  const antes = new Set($$('#reuniaoPicker .pick.selected').map(b => b.dataset.rcollab));
+  picker.innerHTML = activeCollabEntries().map(([k, c]) =>
+    `<button type="button" class="pick${antes.has(k) ? ' selected' : ''}" data-rcollab="${k}" data-collab="${k}">
+       <span class="dot" style="background:var(${c.cssVar})"></span>${escapeHtml(c.name)}
+     </button>`).join('');
+}
+
+function reuniaoErro(msg){
+  const el = $('#reuniaoErro');
+  if(!msg){ el.style.display = 'none'; return; }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// Marca a reuniao direto, sem depender de aceite (o fluxo antigo por consenso continua
+// existindo pro time via "Solicitar reunião" na sidebar).
+function salvarReuniao(){
+  if(state.role !== 'admin' || !activeDateKey) return;
+  const escolhidos = $$('#reuniaoPicker .pick.selected').map(b => b.dataset.rcollab);
+  const start = $('#reuniaoStart').value;
+  const end = $('#reuniaoEnd').value;
+  const assunto = $('#reuniaoAssunto').value.trim();
+
+  if(!escolhidos.length) return reuniaoErro('Escolha pelo menos uma pessoa.');
+  if(!start || !end) return reuniaoErro('Defina o horário.');
+  if(end <= start) return reuniaoErro('O fim precisa ser depois do início.');
+  reuniaoErro('');
+
+  const nomes = escolhidos.map(k => COLLABS[k]?.name || k).join(', ');
+  // 'admin' PRECISA entrar em attendees: canSeeEvent/evVisibleTo checam attendees antes
+  // do bypass de admin, entao sem isso a Suzana nao enxerga a propria reuniao.
+  const attendees = ['admin', ...escolhidos];
+  const ev = {
+    id: uid(),
+    title: assunto || `Reunião: ${nomes}`,
+    collab: 'todos',
+    type: 'reuniao',
+    startTime: start, endTime: end,
+    desc: assunto ? '' : '', link: '', location: '',
+    recurring: 'none',
+    pinned: false, private: true,
+    createdAt: new Date().toISOString(),
+    // marca que veio da gestora: sem isso, quem confirma presenca ganha o botao
+    // "Cancelar reunião" (regra que fazia sentido quando toda reuniao nascia de acordo
+    // entre pares) e poderia apagar a reuniao que a Suzana marcou.
+    criadoPor: 'admin',
+    attendees: attendees,
+    rsvp: { admin: 'yes' },   // a Suzana marcou, entao ja esta confirmada
+    comments: [], completed: false,
+    tasks: []
+  };
+  if(!state.events[activeDateKey]) state.events[activeDateKey] = [];
+  state.events[activeDateKey].push(ev);
+  save('events');
+
+  logHistory(`👥 Marcou reunião com ${nomes} em ${activeDateKey} ${start}`);
+  escolhidos.forEach(k => triggerPush(k, '👥 Reunião marcada', `${activeDateKey} às ${start} — ${assunto || 'com ' + nomes}`));
+
+  toast(`Reunião marcada com ${nomes}`);
+  $('#reuniaoAssunto').value = '';
+  $$('#reuniaoPicker .pick.selected').forEach(b => b.classList.remove('selected'));
+  renderExistingEvents();
+  render();
 }
 
 function renderFolgaPicker(){
@@ -6241,6 +6497,31 @@ function bindEvents(){
   // recorrencia custom toggle
   $('#eventRecurring').addEventListener('change', () => {
     $('#customRecurWrap').style.display = $('#eventRecurring').value === 'custom' ? 'block' : 'none';
+  });
+
+  // abas do dia (admin)
+  $('#dayTabs').addEventListener('click', e => {
+    const b = e.target.closest('.day-tab');
+    if(b) setDayTab(b.dataset.dtab);
+  });
+  $('#tarefaSaveBtn').addEventListener('click', salvarTarefa);
+  $('#tarefaTexto').addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); salvarTarefa(); } });
+  $('#tarefaQuickPicker').addEventListener('click', e => {
+    const b = e.target.closest('[data-tq]');
+    if(!b) return;
+    $('#tarefaTexto').value = b.dataset.tq;
+    $('#tarefaTexto').focus();
+  });
+  $('#reuniaoSaveBtn').addEventListener('click', salvarReuniao);
+  $('#reuniaoPicker').addEventListener('click', e => {
+    const b = e.target.closest('.pick');
+    if(b) b.classList.toggle('selected');
+  });
+  $('#reuniaoTodosBtn').addEventListener('click', () => {
+    $$('#reuniaoPicker .pick').forEach(b => b.classList.add('selected'));
+  });
+  $('#reuniaoLimparBtn').addEventListener('click', () => {
+    $$('#reuniaoPicker .pick').forEach(b => b.classList.remove('selected'));
   });
 
   // save/cancel
