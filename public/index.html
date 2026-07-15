@@ -1359,6 +1359,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         <button class="day-tab active" data-dtab="evento" type="button">📅 Evento</button>
         <button class="day-tab" data-dtab="tarefa" type="button">✅ Tarefa</button>
         <button class="day-tab" data-dtab="reuniao" type="button">👥 Reunião</button>
+        <button class="day-tab" data-dtab="ferias" type="button">🏝️ Férias</button>
       </div>
 
       <div id="tabEvento">
@@ -1579,10 +1580,51 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         </div>
       </div>
 
-      <div id="folgaWrap" style="margin-top:20px;padding-top:16px;border-top:1.5px dashed var(--ink-soft)">
-        <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0 0 4px;letter-spacing:-0.01em">🏖️ Folga do dia</h4>
-        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Marque quem esta de folga e escolha se e integral (🏖️) ou parcial (🌗). Folgas nao contam como carga do mes.</p>
-        <div id="folgaPicker" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <!-- ABA FERIAS: periodo longo (dias corridos) + a folga avulsa do dia -->
+      <div id="tabFerias" style="display:none">
+        <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:18px;margin-bottom:4px;letter-spacing:-0.01em">Cadastrar férias</h4>
+        <p style="font-size:11px;color:var(--ink-soft);margin-bottom:14px;font-style:italic">Escolha quem, quando começa e quantos dias. São dias corridos — fins de semana e feriados entram na conta.</p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="feriasCollab">Colaborador</label>
+            <select id="feriasCollab"></select>
+          </div>
+          <div class="form-group">
+            <label for="feriasMes">Mês</label>
+            <select id="feriasMes"></select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="feriasDia">Entra de férias no dia</label>
+            <select id="feriasDia"></select>
+          </div>
+          <div class="form-group">
+            <label for="feriasDias">Quantos dias (2 a 40)</label>
+            <input type="number" id="feriasDias" min="2" max="40" step="1" value="30">
+          </div>
+        </div>
+
+        <div id="feriasPreview" style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:10px"></div>
+        <div id="feriasErro" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;margin-bottom:8px"></div>
+
+        <div class="modal-actions">
+          <button class="btn primary" id="feriasSaveBtn">Cadastrar férias</button>
+        </div>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1.5px dashed var(--ink-soft)">
+          <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0 0 4px;letter-spacing:-0.01em">🏝️ Férias cadastradas</h4>
+          <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Períodos já lançados, de hoje em diante.</p>
+          <div id="feriasLista" style="display:flex;flex-direction:column;gap:4px"></div>
+        </div>
+
+        <div id="folgaWrap" style="margin-top:20px;padding-top:16px;border-top:1.5px dashed var(--ink-soft)">
+          <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:0 0 4px;letter-spacing:-0.01em">🏖️ Folga deste dia</h4>
+          <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Folga avulsa, só do dia aberto. Marque quem está de folga e escolha se é integral (🏖️) ou parcial (🌗). Não conta como carga do mês.</p>
+          <div id="folgaPicker" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
       </div>
     </div>
 
@@ -2585,6 +2627,9 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 const pad = n => String(n).padStart(2,'0');
 const keyOf = (y,m,d) => `${y}-${pad(m+1)}-${pad(d)}`;
 const keyFromDate = d => keyOf(d.getFullYear(), d.getMonth(), d.getDate());
+// 'YYYY-MM-DD' -> Date local. new Date('2026-08-03') seria interpretado como UTC e
+// poderia cair no dia anterior dependendo do fuso.
+const dateFromKey = k => { const [y,m,d] = k.split('-').map(Number); return new Date(y, m-1, d); };
 const todayObj = new Date();
 const todayKey = keyFromDate(todayObj);
 const monthDayKey = d => `${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -3597,9 +3642,8 @@ function renderMonth(){
       const c = folgaCollabKey(entry);
       const ci = COLLABS[c];
       if(!ci) return;
-      const tipo = folgaTipo(entry);
-      const ico = tipo === 'parcial' ? '🌗' : '🏖️';
-      const titulo = tipo === 'parcial' ? `${ci.name} em folga parcial (${folgaPeriodoLabel(entry)})` : `${ci.name} em folga`;
+      const ico = folgaIco(folgaTipo(entry));
+      const titulo = `${ci.name} ${folgaLabel(entry)}`;
       marks.innerHTML += `<span class="folga-mark" title="${titulo}" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink)">${ico}${ci.initial}</span>`;
     });
     const noteUser = state.role === 'admin' ? 'admin' : state.viewerAs;
@@ -5321,11 +5365,20 @@ function addTaskAssign(){
 }
 
 // Folgas: cada entrada pode ser string (formato antigo = integral) ou {c, t, p}
-// t: 'integral'|'parcial'; p (so parcial): 'manha'|'tarde'
+// t: 'integral'|'parcial'|'ferias'; p (so parcial): 'manha'|'tarde'
+// 'ferias' e so um dia de um periodo longo: reaproveita a folga (marca no calendario,
+// badge no dia, fora da carga do mes) em vez de criar uma estrutura paralela.
 function folgaCollabKey(entry){ return typeof entry === 'string' ? entry : (entry && entry.c); }
 function folgaTipo(entry){ return typeof entry === 'string' ? 'integral' : ((entry && entry.t) || 'integral'); }
 function folgaPeriodo(entry){ return (entry && typeof entry === 'object' && entry.p) || 'manha'; }
 function folgaPeriodoLabel(entry){ return folgaPeriodo(entry) === 'tarde' ? 'tarde' : 'manhã'; }
+function folgaIco(tipo){ return tipo === 'parcial' ? '🌗' : (tipo === 'ferias' ? '🏝️' : '🏖️'); }
+function folgaLabel(entry){
+  const t = folgaTipo(entry);
+  if(t === 'parcial') return `folga parcial (${folgaPeriodoLabel(entry)})`;
+  if(t === 'ferias') return 'de férias';
+  return 'folga integral';
+}
 
 // Resumo de folga do dia, visivel para todos (inclusive colaboradores)
 function renderFolgaInfo(){
@@ -5336,10 +5389,8 @@ function renderFolgaInfo(){
   const items = list.map(entry => {
     const ci = COLLABS[folgaCollabKey(entry)];
     if(!ci) return '';
-    const tipo = folgaTipo(entry);
-    const ico = tipo === 'parcial' ? '🌗' : '🏖️';
-    const label = tipo === 'parcial' ? `folga parcial (${folgaPeriodoLabel(entry)})` : 'folga integral';
-    return `<span class="folga-mark" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink);font-size:12px;padding:4px 9px;border-radius:6px">${ico} ${ci.name} — ${label}</span>`;
+    const ico = folgaIco(folgaTipo(entry));
+    return `<span class="folga-mark" style="background:var(${ci.cssVar});color:var(${ci.cssVar}-ink);font-size:12px;padding:4px 9px;border-radius:6px">${ico} ${ci.name} — ${folgaLabel(entry)}</span>`;
   }).filter(Boolean).join('');
   if(!items){ box.style.display = 'none'; box.innerHTML = ''; return; }
   box.style.display = '';
@@ -5367,8 +5418,10 @@ function setDayTab(tab){
   $('#tabEvento').style.display  = tab === 'evento'  ? '' : 'none';
   $('#tabTarefa').style.display  = tab === 'tarefa'  ? '' : 'none';
   $('#tabReuniao').style.display = tab === 'reuniao' ? '' : 'none';
+  $('#tabFerias').style.display  = tab === 'ferias'  ? '' : 'none';
   if(tab === 'tarefa') renderTarefaCollabSelect();
   if(tab === 'reuniao') renderReuniaoPicker();
+  if(tab === 'ferias'){ renderFeriasForm(); renderFolgaPicker(); }
 }
 
 function renderTarefaCollabSelect(){
@@ -5549,6 +5602,181 @@ function salvarReuniao(){
   $('#reuniaoAssunto').value = '';
   $$('#reuniaoPicker .pick.selected').forEach(b => b.classList.remove('selected'));
   renderExistingEvents();
+  render();
+}
+
+// ============ FERIAS (aba do dia, admin) ============
+// Ferias = N dias corridos marcados como folga t:'ferias'.
+function feriasErro(msg){
+  const el = $('#feriasErro');
+  if(!msg){ el.style.display = 'none'; return; }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function diasNoMes(ano, mes){ return new Date(ano, mes + 1, 0).getDate(); }
+
+function renderFeriasForm(){
+  const sel = $('#feriasCollab');
+  if(!sel) return;
+  const anteriorC = sel.value;
+  sel.innerHTML = activeCollabEntries()
+    .map(([k, c]) => `<option value="${k}">${escapeHtml(c.name)}</option>`).join('');
+  if(anteriorC && sel.querySelector(`option[value="${anteriorC}"]`)) sel.value = anteriorC;
+
+  // mes/dia partem do dia aberto (a cada vez que a aba abre), mas dao pra mudar
+  const base = activeDateKey ? dateFromKey(activeDateKey) : new Date();
+  const mesSel = $('#feriasMes');
+  mesSel.innerHTML = MONTHS_PT.map((m, i) => `<option value="${i}">${m}</option>`).join('');
+  mesSel.value = base.getMonth();
+  renderFeriasDias(base.getDate());
+  feriasErro('');
+  updateFeriasPreview();
+  renderFeriasLista();
+}
+
+function renderFeriasDias(preferido){
+  const diaSel = $('#feriasDia');
+  const mes = +$('#feriasMes').value;
+  const ano = state.current.getFullYear();
+  const anterior = preferido || +diaSel.value || 1;
+  const total = diasNoMes(ano, mes);
+  diaSel.innerHTML = Array.from({length: total}, (_, i) =>
+    `<option value="${i+1}">${i+1}</option>`).join('');
+  diaSel.value = Math.min(anterior, total);
+}
+
+function feriasIntervalo(){
+  const ano = state.current.getFullYear();
+  const mes = +$('#feriasMes').value;
+  const dia = +$('#feriasDia').value;
+  const n = parseInt($('#feriasDias').value, 10);
+  if(!n || n < 2 || n > 40) return null;
+  const inicio = new Date(ano, mes, dia);
+  const dias = [];
+  for(let i = 0; i < n; i++){
+    const d = new Date(inicio);
+    d.setDate(d.getDate() + i);   // rola mes/ano sozinho
+    dias.push(d);
+  }
+  return { inicio, fim: dias[dias.length - 1], dias, n };
+}
+
+function fmtDia(d){ return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`; }
+
+function updateFeriasPreview(){
+  const box = $('#feriasPreview');
+  if(!box) return;
+  const r = feriasIntervalo();
+  if(!r){ box.textContent = 'Informe de 2 a 40 dias.'; return; }
+  const nome = COLLABS[$('#feriasCollab').value]?.name || '';
+  const volta = new Date(r.fim); volta.setDate(volta.getDate() + 1);
+  box.textContent = `${nome}: ${fmtDia(r.inicio)} a ${fmtDia(r.fim)} — ${r.n} dias corridos. Volta em ${fmtDia(volta)}.`;
+}
+
+function salvarFerias(){
+  if(state.role !== 'admin') return;
+  const collab = $('#feriasCollab').value;
+  const r = feriasIntervalo();
+  if(!collab) return feriasErro('Escolha o colaborador.');
+  if(!r) return feriasErro('As férias precisam ter de 2 a 40 dias.');
+  feriasErro('');
+
+  if(!state.folgas) state.folgas = {};
+  r.dias.forEach(d => {
+    const k = keyFromDate(d);
+    if(!state.folgas[k]) state.folgas[k] = [];
+    const lista = state.folgas[k];
+    const i = lista.findIndex(e => folgaCollabKey(e) === collab);
+    // ferias tem precedencia sobre folga avulsa que ja estivesse no dia
+    if(i >= 0) lista[i] = { c: collab, t: 'ferias' };
+    else lista.push({ c: collab, t: 'ferias' });
+  });
+  save('folgas');
+
+  const nome = COLLABS[collab]?.name || collab;
+  logHistory(`🏝️ Cadastrou férias de ${nome}: ${fmtDia(r.inicio)} a ${fmtDia(r.fim)} (${r.n} dias)`);
+  triggerPush(collab, '🏝️ Férias cadastradas', `${fmtDia(r.inicio)} a ${fmtDia(r.fim)} — ${r.n} dias`);
+  toast(`Férias de ${nome}: ${r.n} dias`);
+  renderFeriasLista();
+  renderFolgaPicker();
+  renderFolgaInfo();
+  render();
+}
+
+// Agrupa dias 'ferias' consecutivos por pessoa pra mostrar como periodo.
+function blocosDeFerias(){
+  const porPessoa = {};
+  Object.entries(state.folgas || {}).forEach(([k, lista]) => {
+    (lista || []).forEach(e => {
+      if(folgaTipo(e) !== 'ferias') return;
+      const c = folgaCollabKey(e);
+      (porPessoa[c] = porPessoa[c] || []).push(k);
+    });
+  });
+  const blocos = [];
+  Object.entries(porPessoa).forEach(([c, dias]) => {
+    dias.sort();
+    let ini = null, ant = null;
+    dias.forEach(k => {
+      if(ini === null){ ini = ant = k; return; }
+      const esperado = new Date(dateFromKey(ant)); esperado.setDate(esperado.getDate() + 1);
+      if(keyFromDate(esperado) === k){ ant = k; return; }
+      blocos.push({ collab: c, ini, fim: ant });
+      ini = ant = k;
+    });
+    if(ini !== null) blocos.push({ collab: c, ini, fim: ant });
+  });
+  return blocos.sort((a, b) => a.ini.localeCompare(b.ini));
+}
+
+function renderFeriasLista(){
+  const box = $('#feriasLista');
+  if(!box) return;
+  const hoje = keyFromDate(new Date());
+  const blocos = blocosDeFerias().filter(b => b.fim >= hoje);   // passado nao interessa aqui
+  if(!blocos.length){
+    box.innerHTML = '<span style="font-size:11px;color:var(--ink-faint);font-style:italic">Nenhuma férias cadastrada daqui pra frente.</span>';
+    return;
+  }
+  box.innerHTML = blocos.map(b => {
+    const c = COLLABS[b.collab];
+    if(!c) return '';
+    const photo = c.photo
+      ? `<img src="${c.photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(${c.cssVar})">` : '';
+    const di = dateFromKey(b.ini), df = dateFromKey(b.fim);
+    const n = Math.round((df - di) / 86400000) + 1;
+    return `<div class="task-item">
+      ${photo}<strong style="font-size:11px;min-width:60px">${escapeHtml(c.name)}</strong>
+      <span class="task-text">${fmtDia(di)} a ${fmtDia(df)} · ${n} dia(s)</span>
+      <button class="task-remove" data-ferias="${b.collab}|${b.ini}|${b.fim}" title="Cancelar férias">&times;</button>
+    </div>`;
+  }).filter(Boolean).join('');
+}
+
+function cancelarFerias(collab, ini, fim){
+  if(state.role !== 'admin') return;
+  const nome = COLLABS[collab]?.name || collab;
+  if(!confirm(`Cancelar as férias de ${nome} (${fmtDia(dateFromKey(ini))} a ${fmtDia(dateFromKey(fim))})?`)) return;
+  let d = dateFromKey(ini);
+  const df = dateFromKey(fim);
+  while(d <= df){
+    const k = keyFromDate(d);
+    const lista = state.folgas[k];
+    if(lista){
+      // so remove o que e ferias: folga avulsa no mesmo dia fica
+      const i = lista.findIndex(e => folgaCollabKey(e) === collab && folgaTipo(e) === 'ferias');
+      if(i >= 0) lista.splice(i, 1);
+      if(!lista.length) delete state.folgas[k];
+    }
+    d.setDate(d.getDate() + 1);
+  }
+  save('folgas');
+  logHistory(`🏝️ Cancelou as férias de ${nome} (${fmtDia(dateFromKey(ini))} a ${fmtDia(dateFromKey(fim))})`);
+  toast(`Férias de ${nome} canceladas`);
+  renderFeriasLista();
+  renderFolgaPicker();
+  renderFolgaInfo();
   render();
 }
 
@@ -6603,6 +6831,17 @@ function bindEvents(){
   });
   $('#reuniaoLimparBtn').addEventListener('click', () => {
     $$('#reuniaoPicker .pick').forEach(b => b.classList.remove('selected'));
+  });
+  $('#feriasSaveBtn').addEventListener('click', salvarFerias);
+  $('#feriasMes').addEventListener('change', () => { renderFeriasDias(); updateFeriasPreview(); });
+  ['#feriasDia','#feriasDias','#feriasCollab'].forEach(sel =>
+    $(sel).addEventListener('change', updateFeriasPreview));
+  $('#feriasDias').addEventListener('input', updateFeriasPreview);
+  $('#feriasLista').addEventListener('click', e => {
+    const b = e.target.closest('[data-ferias]');
+    if(!b) return;
+    const [c, ini, fim] = b.dataset.ferias.split('|');
+    cancelarFerias(c, ini, fim);
   });
 
   // save/cancel
