@@ -1608,6 +1608,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         </div>
 
         <div id="feriasPreview" style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:10px"></div>
+        <div id="feriasConflitos" class="warn-box" style="display:none"></div>
         <div id="feriasErro" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;margin-bottom:8px"></div>
 
         <div class="modal-actions">
@@ -5664,14 +5665,50 @@ function feriasIntervalo(){
 
 function fmtDia(d){ return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`; }
 
+// Eventos daquela pessoa dentro do periodo. evVisibleTo() e a definicao que o proprio
+// app usa pra "este evento envolve esta pessoa" (inclui tarefa dela, evento de 'todos'
+// e reuniao em que foi convidada).
+function eventosNoPeriodo(collab, dias){
+  const achados = [];
+  dias.forEach(d => {
+    const k = keyFromDate(d);
+    (state.events[k] || []).forEach(ev => {
+      if(evVisibleTo(ev, collab)) achados.push({ k, ev });
+    });
+  });
+  return achados;
+}
+
+function renderFeriasConflitos(collab, dias){
+  const box = $('#feriasConflitos');
+  if(!box) return [];
+  const achados = collab && dias ? eventosNoPeriodo(collab, dias) : [];
+  if(!achados.length){ box.style.display = 'none'; box.innerHTML = ''; return []; }
+  const nome = COLLABS[collab]?.name || collab;
+  const linhas = achados.slice(0, 6).map(a =>
+    `<li>${fmtDia(dateFromKey(a.k))} — ${escapeHtml(a.ev.title)}</li>`).join('');
+  const resto = achados.length > 6 ? `<li>…e mais ${achados.length - 6}</li>` : '';
+  box.innerHTML = `<strong>⚠️ ${nome} tem ${achados.length} compromisso(s) nesse período:</strong>
+    <ul style="margin:6px 0 0 16px;font-style:normal;font-size:12px">${linhas}${resto}</ul>
+    <div style="margin-top:6px;font-size:11.5px">As férias não apagam nada — é só um aviso pra você remanejar se quiser.</div>`;
+  box.style.display = '';
+  return achados;
+}
+
 function updateFeriasPreview(){
   const box = $('#feriasPreview');
   if(!box) return;
   const r = feriasIntervalo();
-  if(!r){ box.textContent = 'Informe de 2 a 40 dias.'; return; }
-  const nome = COLLABS[$('#feriasCollab').value]?.name || '';
+  const collab = $('#feriasCollab').value;
+  if(!r){
+    box.textContent = 'Informe de 2 a 40 dias.';
+    renderFeriasConflitos(null, null);
+    return;
+  }
+  const nome = COLLABS[collab]?.name || '';
   const volta = new Date(r.fim); volta.setDate(volta.getDate() + 1);
   box.textContent = `${nome}: ${fmtDia(r.inicio)} a ${fmtDia(r.fim)} — ${r.n} dias corridos. Volta em ${fmtDia(volta)}.`;
+  renderFeriasConflitos(collab, r.dias);
 }
 
 function salvarFerias(){
@@ -5681,6 +5718,20 @@ function salvarFerias(){
   if(!collab) return feriasErro('Escolha o colaborador.');
   if(!r) return feriasErro('As férias precisam ter de 2 a 40 dias.');
   feriasErro('');
+
+  // avisa, mas nao bloqueia: quem decide e ela
+  const conflitos = eventosNoPeriodo(collab, r.dias);
+  if(conflitos.length){
+    const nome = COLLABS[collab]?.name || collab;
+    const amostra = conflitos.slice(0, 8)
+      .map(a => `  • ${fmtDia(dateFromKey(a.k))} — ${a.ev.title}`).join('\n');
+    const resto = conflitos.length > 8 ? `\n  …e mais ${conflitos.length - 8}` : '';
+    if(!confirm(
+      `${nome} tem ${conflitos.length} compromisso(s) entre ${fmtDia(r.inicio)} e ${fmtDia(r.fim)}:\n\n` +
+      amostra + resto +
+      `\n\nCadastrar as férias mesmo assim?\n(Nada é apagado — os compromissos continuam lá.)`
+    )) return;
+  }
 
   if(!state.folgas) state.folgas = {};
   r.dias.forEach(d => {
@@ -5697,7 +5748,9 @@ function salvarFerias(){
   const nome = COLLABS[collab]?.name || collab;
   logHistory(`🏝️ Cadastrou férias de ${nome}: ${fmtDia(r.inicio)} a ${fmtDia(r.fim)} (${r.n} dias)`);
   triggerPush(collab, '🏝️ Férias cadastradas', `${fmtDia(r.inicio)} a ${fmtDia(r.fim)} — ${r.n} dias`);
-  toast(`Férias de ${nome}: ${r.n} dias`);
+  toast(conflitos.length
+    ? `Férias de ${nome}: ${r.n} dias (${conflitos.length} compromisso(s) no período)`
+    : `Férias de ${nome}: ${r.n} dias`);
   renderFeriasLista();
   renderFolgaPicker();
   renderFolgaInfo();
