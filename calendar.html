@@ -56,7 +56,7 @@
 body.modal-locked{position:fixed;width:100%;overflow:hidden;padding-left:env(safe-area-inset-left,0);padding-right:env(safe-area-inset-right,0)}
 .modal-backdrop.open{overscroll-behavior:contain}
 .modal-backdrop.open .modal{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-#msgThread,#msgContactsList,#diaryAllHistory,#kudosList,#requestsBody,#historyBody,#searchResults,#weatherBody,#statusBody,#insightsBody,#existingEventsWrap{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#msgThread,#msgContactsList,#diaryAllHistory,#kudosList,#requestsBody,#historyBody,#searchResults,#weatherBody,#statusBody,#insightsBody,#existingEventsWrap,#teamList{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 html,body{background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;transition:background .25s ease,color .25s ease}
 body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 
@@ -1263,6 +1263,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
     <div>
       <h2 class="panel-title">Equipe</h2>
       <div class="collaborators" id="collabsList"></div>
+      <button class="btn small" id="manageTeamBtn" style="display:none;margin-top:8px;width:100%">👥 Gerenciar equipe</button>
     </div>
 
     <div>
@@ -1378,14 +1379,8 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
         <label>Equipe & Tarefas</label>
         <p style="font-size:11px;color:var(--ink-soft);margin-bottom:8px;font-style:italic">Selecione um colaborador, escolha ou digite a função e clique em adicionar.</p>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
-          <select id="taskCollabSelect" style="padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
-            <option value="joao">João</option>
-            <option value="thayane">Thayane</option>
-            <option value="lianda">Lianda</option>
-            <option value="ravy">Ravy</option>
-            <option value="sabrina">Sabrina</option>
-            <option value="todos">★ Todos (equipe inteira)</option>
-          </select>
+          <!-- preenchido por renderTaskCollabSelect() a partir da equipe -->
+          <select id="taskCollabSelect" style="padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)"></select>
           <select id="taskPrioritySelect" style="padding:8px 10px;border:1.5px solid var(--ink);border-radius:6px;font-size:13px;background:var(--bg);color:var(--ink)">
             <option value="normal">Normal</option>
             <option value="high">🟠 Alta</option>
@@ -1740,38 +1735,56 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
       </label>
     </div>
 
-    <h4 style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:18px 0 10px;letter-spacing:-0.01em">Cores dos colaboradores</h4>
-    <div class="form-row">
-      <div class="form-group">
-        <label>João</label>
-        <input type="color" id="color-joao">
-      </div>
-      <div class="form-group">
-        <label>Thayane</label>
-        <input type="color" id="color-thayane">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Lianda</label>
-        <input type="color" id="color-lianda">
-      </div>
-      <div class="form-group">
-        <label>Ravy</label>
-        <input type="color" id="color-ravy">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Sabrina</label>
-        <input type="color" id="color-sabrina">
-      </div>
-      <div class="form-group"></div>
-    </div>
+    <h4 id="colorsHeader" style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:18px 0 10px;letter-spacing:-0.01em">Cores dos colaboradores</h4>
+    <!-- preenchido por openSettings() a partir da equipe -->
+    <div id="colorsGrid"></div>
 
     <div class="modal-actions">
       <button class="btn" id="settingsReset">Resetar cores</button>
       <button class="btn primary" id="settingsSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ GERENCIAR EQUIPE (admin) ============ -->
+<div class="modal-backdrop" id="teamModal">
+  <div class="modal wide">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
+    <h3>👥 Gerenciar equipe</h3>
+    <p class="sub">Adicione pessoas novas ou encerre o acesso de quem saiu</p>
+
+    <div id="teamList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px"></div>
+
+    <h4 id="teamAddHeader" style="font-family:'Fraunces',serif;font-weight:600;font-size:16px;margin:18px 0 10px;letter-spacing:-0.01em">Adicionar colaborador</h4>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="teamNome">Nome</label>
+        <input type="text" id="teamNome" placeholder="Ex.: Carla" maxlength="24">
+      </div>
+      <div class="form-group">
+        <label for="teamPin">PIN de 4 dígitos</label>
+        <input type="tel" id="teamPin" placeholder="0000" maxlength="4" inputmode="numeric" pattern="[0-9]*">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="teamCidade">Cidade</label>
+        <select id="teamCidade"></select>
+      </div>
+      <div class="form-group">
+        <label for="teamCor">Cor no calendário</label>
+        <input type="color" id="teamCor" value="#C9C4E8">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="teamFoto">Foto (opcional)</label>
+      <input type="file" id="teamFoto" accept="image/*">
+      <p style="font-size:11px;color:var(--ink-faint);margin-top:4px;font-style:italic">A imagem é reduzida automaticamente. Sem foto, aparece a inicial do nome.</p>
+    </div>
+    <div id="teamErro" style="display:none;color:var(--danger);font-size:12.5px;font-family:Fraunces,serif;font-style:italic;margin-bottom:8px"></div>
+
+    <div class="modal-actions">
+      <button class="btn primary" id="teamAddBtn">Adicionar à equipe</button>
     </div>
   </div>
 </div>
@@ -1910,7 +1923,6 @@ const AUTH_USERS = {
   ravy:    { email:'ravy@equipe.cal',    role:'viewer', collabKey:'ravy',  name:'Ravy' },
   sabrina: { email:'sabrina@equipe.cal', role:'viewer', collabKey:'sabrina', name:'Sabrina' }
 };
-function authUserByEmail(email){ return Object.values(AUTH_USERS).find(function(u){ return u.email === email; }); }
 function pinToPassword(pin){ return pin + 'eq'; }
 
 // Storage adapter: Firestore com cache em localStorage
@@ -1945,14 +1957,103 @@ window.storage = {
 'use strict';
 
 // ============ CONSTANTES ============
-const COLLABS = {
-  joao:    { name:'João',    color:'color-joao',    cssVar:'--c-joao',    initial:'J', photo:'João.jpg',    homeCity:'palmeira' },
-  thayane: { name:'Thayane', color:'color-thayane', cssVar:'--c-thayane', initial:'T', photo:'Thayane.png', homeCity:'penedo' },
-  lianda:  { name:'Lianda',  color:'color-lianda',  cssVar:'--c-lianda',  initial:'L', photo:'Lianda.png',  homeCity:'penedo' },
-  ravy:    { name:'Ravy',    color:'color-ravy',    cssVar:'--c-ravy',    initial:'R', photo:'Ravy.jpg',    homeCity:'penedo' },
-  sabrina: { name:'Sabrina', color:'color-sabrina', cssVar:'--c-sabrina', initial:'S', photo:'sabrina.png', homeCity:'penedo' },
-  todos:   { name:'Todos',  color:'color-todos',   cssVar:'--c-todos',   initial:'★', photo:'' }
+// Equipe inicial. So e usada enquanto state.equipe estiver vazio (ou seja, ate a
+// Suzana mexer na equipe pela primeira vez). Manter as chaves: os dados ja gravados
+// referenciam a pessoa pela chave (evento guarda collab:'lianda', nao os dados dela).
+const SEED_EQUIPE = {
+  joao:    { nome:'João',    cor:'#A8E6F0', foto:'João.jpg',    cidade:'palmeira', email:'joao@equipe.cal',    ativo:true },
+  thayane: { nome:'Thayane', cor:'#F4C2D7', foto:'Thayane.png', cidade:'penedo',   email:'thayane@equipe.cal', ativo:true },
+  lianda:  { nome:'Lianda',  cor:'#FFD98A', foto:'Lianda.png',  cidade:'penedo',   email:'lianda@equipe.cal',  ativo:true },
+  ravy:    { nome:'Ravy',    cor:'#B4E8B4', foto:'Ravy.jpg',    cidade:'penedo',   email:'ravy@equipe.cal',    ativo:true },
+  sabrina: { nome:'Sabrina', cor:'#FFC2A8', foto:'sabrina.png', cidade:'penedo',   email:'sabrina@equipe.cal', ativo:true }
 };
+
+// COLLABS e derivado de state.equipe por rebuildCollabs(). Continua const e e mutado
+// no lugar porque bindEvents() cria closures sobre ele antes do login.
+const COLLABS = {};
+const TODOS_INFO = { name:'Todos', color:'color-todos', cssVar:'--c-todos', initial:'★', photo:'', ativo:true };
+
+// A equipe efetiva: o que a Suzana gravou ou, enquanto nao gravou nada, o seed.
+function equipeAtual(){
+  const e = state.equipe;
+  return (e && Object.keys(e).length) ? e : SEED_EQUIPE;
+}
+
+function rebuildCollabs(){
+  Object.keys(COLLABS).forEach(k => delete COLLABS[k]);
+  Object.entries(equipeAtual()).forEach(([k, p]) => {
+    COLLABS[k] = {
+      name: p.nome || k,
+      color: 'color-' + k,
+      cssVar: '--c-' + k,
+      initial: (p.nome || k).trim().charAt(0).toUpperCase(),
+      photo: fotoDe(k, p),
+      homeCity: p.cidade || 'penedo',
+      cor: p.cor || '#CCCCCC',
+      // desativado continua em COLLABS de proposito: o historico referencia a chave e
+      // ha ~10 acessos sem guarda (ex.: COLLABS[ev.collab].name). Some da equipe via
+      // activeCollabs(), nao daqui.
+      ativo: p.ativo !== false
+    };
+  });
+  COLLABS.todos = { ...TODOS_INFO };
+  injectCollabCSS();
+}
+
+// Foto: nome de arquivo (equipe antiga) ou data URL guardada em state.equipeFotos.
+function fotoDe(key, p){
+  if(p && p.foto === 'upload') return (state.equipeFotos || {})[key] || '';
+  return (p && p.foto) || '';
+}
+
+// Cores sugeridas pra quem entra. Sem isso todo mundo novo nasce com a mesma cor e os
+// eventos ficam indistinguiveis no calendario.
+const PALETA_SUGERIDA = ['#C9C4E8','#9EE0D2','#F7D4A8','#D6E8A0','#F2B8C6','#A8C8F0','#E8C4A0','#B8E0F0'];
+function corSugerida(){
+  const usadas = Object.values(equipeAtual()).map(p => (p.cor || '').toLowerCase());
+  return PALETA_SUGERIDA.find(c => !usadas.includes(c.toLowerCase())) || PALETA_SUGERIDA[0];
+}
+
+// Chaves de quem esta ativo. 'todos' entra so quando pedido.
+function activeCollabs(opts){
+  const o = opts || {};
+  return Object.keys(COLLABS).filter(k => {
+    if(k === 'todos') return !!o.includeTodos;
+    if(!COLLABS[k].ativo && !o.includeInativos) return false;
+    if(o.exclude && o.exclude === k) return false;
+    return true;
+  });
+}
+function activeCollabEntries(opts){ return activeCollabs(opts).map(k => [k, COLLABS[k]]); }
+
+// As regras .event.color-<k> / .pick[data-collab=<k>] eram estaticas, entao alguem novo
+// renderizava sem cor. Geradas aqui a partir do roster. O CSS estatico do topo continua
+// existindo e repete os mesmos valores para os 5 originais - redundante e inofensivo.
+function injectCollabCSS(){
+  let el = document.getElementById('collabColorsCSS');
+  if(!el){
+    el = document.createElement('style');
+    el.id = 'collabColorsCSS';
+    document.head.appendChild(el);
+  }
+  el.textContent = Object.keys(COLLABS).map(k =>
+    `.event.color-${k}{background:var(--c-${k});color:var(--c-${k}-ink)}` +
+    `.pick[data-collab="${k}"].selected{background:var(--c-${k})}`
+  ).join('\n');
+}
+
+// Valores das variaveis CSS. customColors (dado real que ja existe em producao) ganha
+// da cor do roster.
+function applyCollabColors(){
+  Object.entries(COLLABS).forEach(([k, info]) => {
+    if(k === 'todos') return;
+    const c = state.customColors[k] || info.cor;
+    if(!c) return;
+    document.documentElement.style.setProperty(info.cssVar, c);
+    document.documentElement.style.setProperty(info.cssVar + '-ink', contrastInk(c));
+  });
+}
+
 const ADMIN_USER = { name:'Suzana', photo:'Suzana.png' };
 const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const WEEKDAYS_FULL = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
@@ -2084,7 +2185,9 @@ let state = {
   kudos: [],              // { id, from, to, text, when }
   messages: [],           // { id, from, to, text, when, read }
   folgas: {},             // { 'YYYY-MM-DD': [{c:'joao',t:'integral'}, {c:'lianda',t:'parcial'}] } - dias de folga (string antiga = integral)
-  userPriorities: {}      // { joao: { 'eventId': 'high', ... } } - prioridade pessoal de cada usuario para cada evento
+  userPriorities: {},     // { joao: { 'eventId': 'high', ... } } - prioridade pessoal de cada usuario para cada evento
+  equipe: {},             // { joao: { nome, cor, foto, cidade, email, pinHash, ativo } } - vazio = usa SEED_EQUIPE
+  equipeFotos: {}         // { joao: 'data:image/jpeg;base64,...' } - doc separado pra nao inchar 'equipe'
 };
 
 state.current.setDate(1);
@@ -2097,7 +2200,7 @@ async function loadAll(){
   const localFestive = localStorage.getItem('userFestive');
   if(localFestive !== null) state.festive = localFestive === '1';
 
-  const keys = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary','blocks','reminders','kudos','messages','folgas','userPriorities'];
+  const keys = ['events','statuses','history','customColors','birthdays','requests','notes','priorities','diary','blocks','reminders','kudos','messages','folgas','userPriorities','equipe','equipeFotos'];
   for(const k of keys){
     try{
       const r = await window.storage.get(k);
@@ -2107,6 +2210,8 @@ async function loadAll(){
       }
     }catch(e){ /* primeira vez */ }
   }
+  // equipe/equipeFotos ausentes = ninguem mexeu ainda: equipeAtual() cai no seed.
+  rebuildCollabs();
 }
 let localSaveCount = 0;
 let offlineQueue = JSON.parse(localStorage.getItem('offlineQueue') || '[]');
@@ -2178,6 +2283,8 @@ function startRealtimeSync(){
               state[key] = parsed;
               localStorage.setItem('cache_' + key, val);
               changed = true;
+              // equipe mudou em outro dispositivo: COLLABS e derivado, precisa refazer
+              if(key === 'equipe' || key === 'equipeFotos') rebuildCollabs();
               detectAndNotify(key, oldVal, parsed);
             }
           }catch(e){}
@@ -2416,8 +2523,12 @@ function countEvent(e, counts){
   } else if(counts[e.collab]!=null) counts[e.collab]++;
 }
 
+// counts nao e so inicializacao: countEvent gateia em counts[t.collab] != null, entao
+// quem nao estiver aqui e contado como zero sem erro nenhum.
+function zeroCounts(){ return Object.fromEntries(activeCollabs().map(k => [k, 0])); }
+
 function eventsByCollabInMonth(y, m){
-  const counts = {joao:0, thayane:0, lianda:0, ravy:0, sabrina:0};
+  const counts = zeroCounts();
   Object.keys(state.events).forEach(k => {
     const [yy,mm] = k.split('-').map(Number);
     if(yy===y && mm===m+1){
@@ -2428,7 +2539,7 @@ function eventsByCollabInMonth(y, m){
 }
 
 function eventsByCollabInWeek(weekStart){
-  const counts = {joao:0,thayane:0,lianda:0,ravy:0,sabrina:0};
+  const counts = zeroCounts();
   for(let i=0;i<7;i++){
     const d = new Date(weekStart); d.setDate(d.getDate()+i);
     const k = keyFromDate(d);
@@ -2463,6 +2574,230 @@ function isBirthday(date){
 
 function eventCount(){ return Object.values(state.events).reduce((a,b)=>a+b.length, 0); }
 
+// ============ GERENCIAR EQUIPE (admin) ============
+// A chave e permanente: os dados ja gravados apontam pra ela (evento guarda
+// collab:'lianda'). Por isso nunca e reaproveitada nem renomeada.
+function slugify(nome){
+  return (nome || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 16);
+}
+function novaChave(nome){
+  const base = slugify(nome) || 'pessoa';
+  const usadas = Object.keys(equipeAtual());
+  if(!usadas.includes(base) && base !== 'todos' && base !== 'admin') return base;
+  let i = 2;
+  while(usadas.includes(base + i) || base + i === 'todos') i++;
+  return base + i;
+}
+
+// Reduz a imagem no cliente. Guardar a foto original estouraria o limite de 1 MiB por
+// documento do Firestore (e o localStorage, que espelha tudo).
+function fotoParaDataURL(file, lado){
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = () => reject(new Error('Não consegui ler o arquivo'));
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Arquivo não parece ser uma imagem'));
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = cv.height = lado;
+        const ctx = cv.getContext('2d');
+        // recorte quadrado central, pra nao distorcer
+        const m = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width-m)/2, (img.height-m)/2, m, m, 0, 0, lado, lado);
+        resolve(cv.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+function teamErro(msg){
+  const el = $('#teamErro');
+  if(!msg){ el.style.display = 'none'; return; }
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+let pinMapCache = null;
+
+async function openTeam(){
+  if(state.role !== 'admin'){ toast('Apenas a gestora pode gerenciar a equipe'); return; }
+  teamErro('');
+  $('#teamNome').value = '';
+  $('#teamPin').value = '';
+  $('#teamFoto').value = '';
+  $('#teamCidade').innerHTML = CITIES.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  $('#teamCidade').value = 'penedo';
+  $('#teamCor').value = corSugerida();
+  $('#teamModal').classList.add('open');
+  pinMapCache = await lerPinMap();
+  await renderTeamList();
+}
+
+async function renderTeamList(){
+  const wrap = $('#teamList');
+  const sem = pinMapCache ? await semAcesso(pinMapCache) : [];
+  const linhas = [];
+  for(const [k, p] of Object.entries(equipeAtual())){
+    const ativo = p.ativo !== false;
+    const foto = fotoDe(k, p);
+    const cor = state.customColors[k] || p.cor || '#CCCCCC';
+    const avatar = foto
+      ? `<img src="${escapeHtml(foto)}" alt="" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:1.5px solid var(--ink)">`
+      : `<span style="width:34px;height:34px;border-radius:50%;border:1.5px solid var(--ink);background:${escapeHtml(cor)};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${escapeHtml((p.nome||k).charAt(0).toUpperCase())}</span>`;
+    const aviso = ativo && sem.includes(k)
+      ? `<span style="font-size:10.5px;color:var(--warn);font-style:italic">sem acesso — recriar</span>` : '';
+    linhas.push(
+      `<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1.5px solid var(--ink);border-radius:8px;opacity:${ativo?'1':'.55'}">
+         ${avatar}
+         <div style="flex:1;min-width:0">
+           <div style="font-weight:600;font-size:13.5px">${escapeHtml(p.nome||k)}${ativo?'':' <span style="font-weight:400;font-style:italic;font-size:11px">(sem acesso)</span>'}</div>
+           <div style="font-size:11px;color:var(--ink-soft)">${escapeHtml((CITIES.find(c=>c.id===p.cidade)||{}).name || '—')} ${aviso}</div>
+         </div>
+         ${ativo && sem.includes(k) ? `<button class="btn small" data-recriar="${k}">Recriar acesso</button>` : ''}
+         <button class="btn small ${ativo?'danger':''}" data-toggle="${k}">${ativo?'Encerrar acesso':'Reativar'}</button>
+       </div>`
+    );
+  }
+  wrap.innerHTML = linhas.join('');
+}
+
+// Primeira gravacao materializa o SEED no banco: ate a Suzana mexer, o doc nem existe e
+// o app roda em cima da lista do codigo.
+function materializarSeed(){
+  if(!Object.keys(state.equipe).length) state.equipe = JSON.parse(JSON.stringify(SEED_EQUIPE));
+}
+
+async function addColaborador(){
+  if(state.role !== 'admin') return;
+  const nome = $('#teamNome').value.trim();
+  const pin = $('#teamPin').value.trim();
+  const cidade = $('#teamCidade').value;
+  const cor = $('#teamCor').value;
+  const file = $('#teamFoto').files[0];
+
+  // Nome so com letras: ele e interpolado em HTML em dezenas de lugares (COLLABS[k].name)
+  // que nunca precisaram de escape enquanto a equipe era fixa no codigo.
+  if(!/^[\p{L}][\p{L}\s'.-]{1,23}$/u.test(nome)) return teamErro('Use só letras no nome (2 a 24 caracteres).');
+  if(!/^\d{4}$/.test(pin)) return teamErro('O PIN precisa ter exatamente 4 dígitos.');
+
+  const btn = $('#teamAddBtn');
+  btn.disabled = true; btn.textContent = 'Adicionando...';
+  try{
+    teamErro('');
+    const map = await lerPinMap();
+    if(map === null) throw new Error('Não consegui verificar os PINs. Tente de novo.');
+
+    // Dois PINs iguais colidem no hash: o pinMap nao teria como saber de quem e o login.
+    // Checa o pinMap E a equipe toda (desativados inclusive) - ver pinsEmUso().
+    const h = await hashPin(pin);
+    if(map[h] || (await pinsEmUso()).has(h)) throw new Error('Esse PIN já está em uso. Escolha outro.');
+
+    const key = novaChave(nome);
+    const email = key + '@equipe.cal';
+    let fotoData = '';
+    if(file) fotoData = await fotoParaDataURL(file, 128);
+
+    await criarContaAuth(email, pin);
+
+    materializarSeed();
+    state.equipe[key] = {
+      nome, cor, cidade, email, pinHash: h, ativo: true,
+      foto: fotoData ? 'upload' : ''
+    };
+    if(fotoData){ state.equipeFotos[key] = fotoData; save('equipeFotos'); }
+    save('equipe');
+    rebuildCollabs();
+
+    // merge: escreve so esta entrada, sem tocar no acesso de ninguem
+    await db.collection('pinMap').doc('map').set({ [h]: email }, { merge:true });
+
+    logHistory(`👥 Adicionou ${nome} à equipe`);
+    toast(`${nome} entrou na equipe! PIN ${pin}`);
+    $('#teamNome').value = ''; $('#teamPin').value = ''; $('#teamFoto').value = '';
+    $('#teamCor').value = corSugerida();
+    pinMapCache = await lerPinMap();
+    await renderTeamList();
+    render();
+  }catch(e){
+    teamErro(e.message || 'Não consegui adicionar. Tente de novo.');
+  }finally{
+    btn.disabled = false; btn.textContent = 'Adicionar à equipe';
+  }
+}
+
+async function toggleColaborador(key){
+  if(state.role !== 'admin') return;
+  const p = equipeAtual()[key];
+  if(!p) return;
+  const ativo = p.ativo !== false;
+
+  if(ativo && !confirm(
+    `Encerrar o acesso de ${p.nome}?\n\n` +
+    `Ela(e) sai da equipe e não consegue mais entrar no app.\n` +
+    `Os eventos, diários e folgas dela(e) CONTINUAM no calendário — nada é apagado.\n\n` +
+    `Dá pra reativar depois.`)) return;
+
+  try{
+    materializarSeed();
+    state.equipe[key] = { ...state.equipe[key], ativo: !ativo };
+    save('equipe');
+    rebuildCollabs();
+
+    const h = await hashEsperado(key);
+    if(h){
+      // Tirar do pinMap e o que de fato barra o login (resolveUser tambem barra, mas
+      // duas travas e melhor que uma). A conta no Firebase Auth continua existindo:
+      // apagar de verdade exige SDK de servidor.
+      await db.collection('pinMap').doc('map').set(
+        { [h]: ativo ? firebase.firestore.FieldValue.delete() : p.email },
+        { merge:true }
+      );
+    }
+    logHistory(`👥 ${ativo ? 'Encerrou o acesso de' : 'Reativou'} ${p.nome}`);
+    toast(ativo ? `Acesso de ${p.nome} encerrado` : `${p.nome} reativada(o)`);
+    pinMapCache = await lerPinMap();
+    await renderTeamList();
+    render();
+  }catch(e){
+    toast('Não consegui salvar. Tente de novo.');
+  }
+}
+
+// Recria a conta de quem esta ativo mas ficou sem entrada no pinMap.
+async function recriarAcesso(key){
+  if(state.role !== 'admin') return;
+  const p = equipeAtual()[key];
+  if(!p) return;
+  const pin = prompt(`Novo PIN de 4 dígitos para ${p.nome}:`);
+  if(pin === null) return;
+  if(!/^\d{4}$/.test(pin.trim())) { toast('O PIN precisa ter 4 dígitos'); return; }
+  try{
+    const map = await lerPinMap();
+    if(map === null) throw new Error('falha ao ler');
+    const h = await hashPin(pin.trim());
+    if(map[h] && map[h] !== p.email){ toast('Esse PIN já está em uso'); return; }
+    // mesmo cuidado do add: o PIN pode pertencer a alguem desativado
+    const outros = await pinsEmUso();
+    const meu = await hashEsperado(key);
+    if(outros.has(h) && h !== meu){ toast('Esse PIN já está em uso'); return; }
+    await criarContaAuth(p.email, pin.trim());
+    materializarSeed();
+    state.equipe[key] = { ...state.equipe[key], pinHash: h };
+    save('equipe');
+    await db.collection('pinMap').doc('map').set({ [h]: p.email }, { merge:true });
+    toast(`Acesso de ${p.nome} recriado. PIN ${pin.trim()}`);
+    pinMapCache = await lerPinMap();
+    await renderTeamList();
+  }catch(e){
+    // EMAIL_EXISTS com PIN diferente = a senha antiga continua valendo
+    toast('Não consegui recriar. A conta pode já existir com outro PIN.');
+  }
+}
+
 // ============ RENDER PRINCIPAL ============
 let lastRenderKey = null;
 function render(){
@@ -2475,12 +2810,8 @@ function render(){
   lastRenderKey = currentKey;
   document.documentElement.classList.toggle('no-anim', !isNavigation);
 
-  // aplicar cores custom (fundo + cor de texto por contraste)
-  Object.entries(state.customColors).forEach(([col, c]) => {
-    if(!c || !COLLABS[col]) return;
-    document.documentElement.style.setProperty(COLLABS[col].cssVar, c);
-    document.documentElement.style.setProperty(COLLABS[col].cssVar + '-ink', contrastInk(c));
-  });
+  // aplicar cores do roster + custom (fundo + cor de texto por contraste)
+  applyCollabColors();
 
   // título
   const y = state.current.getFullYear();
@@ -2810,6 +3141,8 @@ function renderSidebar(){
   const loggedInAny = state.viewerAs || state.role === 'admin';
   const mrBtn = $('#requestMeetingBtn');
   if(mrBtn) mrBtn.style.display = (state.viewerAs || state.role === 'admin') ? '' : 'none';
+  const mtBtn = $('#manageTeamBtn');
+  if(mtBtn) mtBtn.style.display = state.role === 'admin' ? '' : 'none';
   const myDayBtn = $('#myDayBtn');
   if(myDayBtn) myDayBtn.style.display = state.viewerAs ? '' : 'none';
   // mensagens, kudos e diario disponivel para admin tambem
@@ -2926,8 +3259,7 @@ function renderSidebar(){
   const monthCounts = eventsByCollabInMonth(state.current.getFullYear(), state.current.getMonth());
   const collabWrap = $('#collabsList');
   collabWrap.innerHTML = '';
-  const collabEntries = Object.entries(COLLABS).filter(([key]) => {
-    if(key === 'todos') return false;
+  const collabEntries = activeCollabEntries().filter(([key]) => {
     if(state.role === 'viewer' && state.viewerAs && state.viewMode !== 'team') return key === state.viewerAs;
     return true;
   });
@@ -3026,7 +3358,7 @@ function renderSummary(){
   const max = Math.max(1, ...Object.values(counts));
   const sum = $('#summary');
   sum.innerHTML = '';
-  Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
+  activeCollabEntries().forEach(([k, info]) => {
     const val = counts[k];
     const pct = (val / max) * 100;
     const row = document.createElement('div');
@@ -3115,7 +3447,7 @@ function renderMonth(){
     cell.dataset.key = key;
 
     // workload bar (top)
-    const dayCounts = {joao:0,thayane:0,lianda:0,ravy:0,sabrina:0};
+    const dayCounts = zeroCounts();
     (state.events[key]||[]).forEach(e => {
       if(e.tasks && e.tasks.length){
         const seen = new Set();
@@ -3522,6 +3854,7 @@ function openModal(key){
   if(state.role === 'admin'){
     $('#adminForm').style.display = '';
     $('#viewerNote').style.display = 'none';
+    renderTaskCollabSelect();
     resetForm();
     renderFolgaPicker();
   } else {
@@ -3715,7 +4048,7 @@ function renderExistingEvents(){
           const icon = v === 'yes' ? '✓' : '✗';
           rsvpHTML += `<span class="rsvp-status rsvp-${v==='yes'?'yes':'no'}" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(${COLLABS[k].cssVar})">${icon} ${COLLABS[k].name}</span>`;
         });
-        const pending = Object.keys(COLLABS).filter(k => k !== 'todos' && !ev.rsvp[k]);
+        const pending = activeCollabs().filter(k => !ev.rsvp[k]);
         pending.forEach(k => {
           rsvpHTML += `<span class="rsvp-status rsvp-pending" style="display:inline-flex;align-items:center;gap:4px"><img src="${COLLABS[k].photo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1.5px solid var(--muted);opacity:0.5">? ${COLLABS[k].name}</span>`;
         });
@@ -4067,7 +4400,7 @@ function renderExistingEvents(){
       const notified = new Set();
       mentions.forEach(m => {
         const tag = m.slice(1).toLowerCase();
-        const target = Object.keys(COLLABS).find(k => k !== 'todos' && (k === tag || COLLABS[k].name.toLowerCase() === tag));
+        const target = activeCollabs().find(k => k === tag || COLLABS[k].name.toLowerCase() === tag);
         const fullTarget = target || (tag === 'suzana' || tag === ADMIN_USER.name.toLowerCase() ? 'admin' : null);
         if(fullTarget && fullTarget !== who && !notified.has(fullTarget)){
           notified.add(fullTarget);
@@ -4082,8 +4415,7 @@ function renderExistingEvents(){
     let activeMentionIdx = 0;
 
     const showMentions = (filter) => {
-      const candidates = Object.entries(COLLABS)
-        .filter(([k]) => k !== 'todos')
+      const candidates = activeCollabEntries()
         .map(([k, c]) => ({ key: k, name: c.name, photo: c.photo, cssVar: c.cssVar }));
       if(state.role === 'admin' || state.viewerAs) candidates.push({ key: 'admin', name: ADMIN_USER.name, photo: ADMIN_USER.photo });
       const f = (filter || '').toLowerCase();
@@ -4338,7 +4670,7 @@ function saveEvent(){
       if(c && c !== 'todos') triggerPush(c, '📋 Nova tarefa atribuída', `${title} em ${activeDateKey}`);
     });
     if(uniqueCollabs.includes('todos')){
-      Object.keys(COLLABS).filter(k => k !== 'todos').forEach(c => {
+      activeCollabs().forEach(c => {
         triggerPush(c, '📋 Novo evento da equipe', `${title} em ${activeDateKey}`);
       });
     }
@@ -4395,7 +4727,7 @@ function openInsights(){
   const winner = Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
 
   let chartHTML = '';
-  Object.entries(COLLABS).filter(([k])=>k!=='todos').forEach(([k, info]) => {
+  activeCollabEntries().forEach(([k, info]) => {
     const val = counts[k] || 0;
     const pct = (val/max)*100;
     chartHTML += `
@@ -4507,7 +4839,7 @@ function openStatus(){
   let html = '<p style="font-family:Fraunces,serif;font-style:italic;font-size:13px;color:var(--ink-soft);margin-bottom:14px">Cada pessoa define seu próprio status. Você só pode alterar o seu.</p>';
 
   // colaboradores + Suzana (admin)
-  const statusRoster = Object.entries(COLLABS).filter(([k])=>k!=='todos')
+  const statusRoster = activeCollabEntries()
     .map(([k, info]) => [k, { name:info.name, cssVar:info.cssVar, initial:info.initial }]);
   statusRoster.push(['admin', { name:ADMIN_USER.name, cssVar:'--c-todos', initial:'S' }]);
 
@@ -4554,24 +4886,32 @@ function openSettings(){
   $('#settingsTheme').value = state.theme;
   $('#settingsFestive').checked = state.festive;
   const isAdmin = state.role === 'admin';
-  Object.keys(COLLABS).filter(k => k !== 'todos').forEach(k => {
-    const input = document.getElementById('color-'+k);
-    if(input){
-      const current = state.customColors[k] || getComputedStyle(document.documentElement).getPropertyValue(COLLABS[k].cssVar).trim();
-      input.value = rgbToHex(current);
-      input.disabled = !isAdmin;
-    }
-  });
-  // esconder secao de cores para viewer
-  const colorsHeader = document.querySelector('#settingsModal h4');
-  if(colorsHeader){
-    colorsHeader.style.display = isAdmin ? '' : 'none';
-    let sib = colorsHeader.nextElementSibling;
-    while(sib && !sib.classList.contains('modal-actions')){
-      if(sib.classList.contains('form-row')) sib.style.display = isAdmin ? '' : 'none';
-      sib = sib.nextElementSibling;
-    }
+
+  // campos de cor gerados da equipe, em pares (.form-row = grid de 2 colunas)
+  const keys = activeCollabs();
+  let html = '';
+  for(let i = 0; i < keys.length; i += 2){
+    html += '<div class="form-row">' + [keys[i], keys[i+1]].map(k => {
+      if(!k) return '<div class="form-group"></div>';
+      return `<div class="form-group"><label>${escapeHtml(COLLABS[k].name)}</label>` +
+             `<input type="color" id="color-${k}"></div>`;
+    }).join('') + '</div>';
   }
+  $('#colorsGrid').innerHTML = html;
+
+  keys.forEach(k => {
+    const input = document.getElementById('color-'+k);
+    if(!input) return;
+    const current = state.customColors[k] || COLLABS[k].cor ||
+      getComputedStyle(document.documentElement).getPropertyValue(COLLABS[k].cssVar).trim();
+    input.value = rgbToHex(current);
+    input.disabled = !isAdmin;
+  });
+
+  // esconder secao de cores para viewer. Usa ids proprios: o codigo antigo pegava o
+  // primeiro <h4> do modal e caminhava pelos irmaos, o que quebra ao mexer no markup.
+  $('#colorsHeader').style.display = isAdmin ? '' : 'none';
+  $('#colorsGrid').style.display = isAdmin ? '' : 'none';
   $('#settingsReset').style.display = isAdmin ? '' : 'none';
   $('#settingsModal').classList.add('open');
 }
@@ -4585,17 +4925,21 @@ function rgbToHex(c){
 }
 
 // ============ LOGIN (Firebase Auth) ============
-async function openLogin(){
+// Esta tela roda deslogada, entao NAO da pra consultar a equipe (calendarData exige
+// auth). Por isso o botao de setup so aparece no bootstrap de verdade (pinMap
+// inexistente). Conferir "quem esta sem acesso" e trabalho de openTeam(), que roda
+// logada como admin e enxerga o roster - se fosse feito aqui, cairia no SEED_EQUIPE e
+// qualquer um poderia recriar o acesso de alguem que a Suzana desativou.
+async function openLogin(msg){
   $('#loginPwd').value = '';
-  $('#loginError').style.display = 'none';
+  if(msg){ $('#loginError').textContent = msg; $('#loginError').style.display = 'block'; }
+  else $('#loginError').style.display = 'none';
   $('#setupWrap').style.display = 'none';
   $('#loginModal').classList.add('open');
   setTimeout(()=>$('#loginPwd').focus(), 100);
   try{
     const snap = await db.collection('pinMap').doc('map').get();
-    if(!snap.exists){ $('#setupWrap').style.display = 'block'; return; }
-    const missing = await pinMapMissingUsers(snap.data() || {});
-    if(missing.length) $('#setupWrap').style.display = 'block';
+    if(!snap.exists) $('#setupWrap').style.display = 'block';
   }catch(e){
     $('#setupWrap').style.display = 'block';
   }
@@ -4611,43 +4955,78 @@ const SETUP_PINS = {
   admin:'1302', joao:'9065', thayane:'5641', lianda:'2967', ravy:'3301', sabrina:'4728'
 };
 
-// pinMap só tem quem já foi configurado. Se entrou gente nova no time, ela fica
-// de fora do mapa e não consegue logar até setupAccounts() rodar de novo.
-async function pinMapMissingUsers(map){
-  const missing = [];
-  for(const id of Object.keys(AUTH_USERS)){
-    const h = await hashPin(SETUP_PINS[id]);
-    if(!map[h]) missing.push(id);
-  }
-  return missing;
+// O hash que abre o login de cada pessoa: os 5 originais vem de SETUP_PINS (PIN fixo no
+// codigo), os criados pela Suzana guardam o hash no proprio roster.
+async function hashEsperado(key){
+  if(SETUP_PINS[key]) return await hashPin(SETUP_PINS[key]);
+  const p = equipeAtual()[key];
+  return (p && p.pinHash) || null;
 }
 
+function lerPinMap(){
+  return db.collection('pinMap').doc('map').get()
+    .then(s => s.exists ? (s.data() || {}) : {})
+    .catch(() => null);
+}
+
+// Quem esta ativo na equipe mas nao consegue logar (sem entrada no pinMap).
+async function semAcesso(map){
+  const out = [];
+  for(const k of activeCollabs()){
+    const h = await hashEsperado(k);
+    if(!h || !map[h]) out.push(k);
+  }
+  return out;
+}
+
+// Hashes ja falados por alguem da equipe, INCLUSIVE desativados. O pinMap sozinho nao
+// basta: ao desativar, a entrada sai de la, mas o PIN continua sendo o daquela pessoa e
+// volta a valer se ela for reativada. Sem isso, reusar o PIN de um desativado tranca o
+// novo colaborador pra fora no momento da reativacao.
+async function pinsEmUso(){
+  const usados = new Set();
+  for(const k of Object.keys(equipeAtual())){
+    const h = await hashEsperado(k);
+    if(h) usados.add(h);
+  }
+  usados.add(await hashPin(SETUP_PINS.admin));
+  return usados;
+}
+
+// Cria uma conta no Firebase Auth via REST. EMAIL_EXISTS conta como sucesso: a conta ja
+// esta la e a senha continua sendo a de antes.
+async function criarContaAuth(email, pin){
+  const url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + firebaseConfig.apiKey;
+  const res = await fetch(url, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ email:email, password:pinToPassword(pin), returnSecureToken:false })
+  });
+  const data = await res.json();
+  if(data.localId || data.kind) return true;
+  if(data.error && data.error.message === 'EMAIL_EXISTS') return true;
+  throw new Error((data.error && data.error.message) || 'signUp falhou');
+}
+
+// Bootstrap inicial (botao na tela de login, so aparece se o pinMap nao existir).
 async function setupAccounts(){
-  const apiKey = firebaseConfig.apiKey;
-  const url = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + apiKey;
-  const passwords = SETUP_PINS;
   let ok = 0;
   const pinMapData = {};
   for(const [id, info] of Object.entries(AUTH_USERS)){
     try{
-      const res = await fetch(url, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ email:info.email, password:pinToPassword(passwords[id]), returnSecureToken:false })
-      });
-      const data = await res.json();
-      if(data.localId || data.kind) ok++;
-      else if(data.error && data.error.message === 'EMAIL_EXISTS') ok++;
-      const h = await hashPin(passwords[id]);
-      pinMapData[h] = info.email;
+      await criarContaAuth(info.email, SETUP_PINS[id]);
+      ok++;
+      pinMapData[await hashPin(SETUP_PINS[id])] = info.email;
     }catch(e){}
   }
   if(ok >= 1){
     // logar como admin para ter permissao de escrita no Firestore
     try{
-      await auth.signInWithEmailAndPassword(AUTH_USERS.admin.email, pinToPassword(passwords.admin));
+      await auth.signInWithEmailAndPassword(AUTH_USERS.admin.email, pinToPassword(SETUP_PINS.admin));
       await db.collection('authSetupDone').doc('flag').set({ at: new Date().toISOString() });
-      await db.collection('pinMap').doc('map').set(pinMapData);
+      // merge: nunca sobrescrever o mapa inteiro. Um .set() puro apagaria o acesso de
+      // quem a Suzana criou depois (esses PINs nao existem em SETUP_PINS).
+      await db.collection('pinMap').doc('map').set(pinMapData, { merge:true });
       await auth.signOut();
     }catch(e){
       console.error('Setup Firestore write failed:', e);
@@ -4703,6 +5082,9 @@ async function tryLogin(){
   $('#loginSubmit').disabled = false;
 }
 
+// Quem a Suzana adicionar nao tem frase propria e cai no padrao - por isso ele precisa
+// servir pra qualquer pessoa (o 'Bem-vindo!' de antes so valia pros nomes fixos daqui).
+const WELCOME_PADRAO = 'Seu calendário está te esperando. Confira o que tem pra hoje.';
 const WELCOME_MESSAGES = {
   admin: 'Pronta pra organizar o time? Seu painel de gestão está atualizado.',
   joao: 'Bora fazer acontecer, João! Confira seus eventos do dia.',
@@ -4711,6 +5093,18 @@ const WELCOME_MESSAGES = {
   ravy: 'Fala Ravy! Dá uma olhada no que vem por aí.',
   sabrina: 'Oi Sabrina! Seu dia já está montado, dá uma conferida.'
 };
+
+// Resolve quem esta logado a partir do e-mail. Antes isso lia a lista fixa AUTH_USERS e
+// deslogava quem nao estivesse la - qualquer pessoa criada pela Suzana entrava e era
+// expulsa na hora. Agora consulta a equipe (ja carregada por loadAll()).
+function resolveUser(email){
+  if(email === AUTH_USERS.admin.email) return { user: { ...AUTH_USERS.admin } };
+  const hit = Object.entries(equipeAtual()).find(([, p]) => p.email === email);
+  if(!hit) return { erro:'desconhecido' };
+  const [k, p] = hit;
+  if(p.ativo === false) return { erro:'inativo' };
+  return { user:{ email:p.email, role:'viewer', collabKey:k, name:p.nome || k } };
+}
 
 function applyUserRole(userInfo){
   if(userInfo.role === 'admin'){
@@ -4730,8 +5124,8 @@ function applyUserRole(userInfo){
 
 function showWelcome(userInfo){
   const key = userInfo.collabKey || 'admin';
-  const photo = userInfo.role === 'admin' ? ADMIN_USER.photo : COLLABS[key].photo;
-  const msg = WELCOME_MESSAGES[key] || 'Bem-vindo!';
+  const photo = userInfo.role === 'admin' ? ADMIN_USER.photo : ((COLLABS[key] && COLLABS[key].photo) || '');
+  const msg = WELCOME_MESSAGES[key] || WELCOME_PADRAO;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Bom dia' : (hour < 18 ? 'Boa tarde' : 'Boa noite');
 
@@ -4818,13 +5212,23 @@ function renderFolgaInfo(){
     + `<div style="display:flex;flex-wrap:wrap;gap:6px">${items}</div>`;
 }
 
+// Era <option> fixo no HTML; agora vem da equipe. Preserva a selecao atual.
+function renderTaskCollabSelect(){
+  const sel = $('#taskCollabSelect');
+  if(!sel) return;
+  const anterior = sel.value;
+  sel.innerHTML = activeCollabEntries()
+    .map(([k, c]) => `<option value="${k}">${escapeHtml(c.name)}</option>`).join('')
+    + '<option value="todos">★ Todos (equipe inteira)</option>';
+  if(anterior && sel.querySelector(`option[value="${anterior}"]`)) sel.value = anterior;
+}
+
 function renderFolgaPicker(){
   const picker = $('#folgaPicker');
   if(!picker || !activeDateKey) return;
   if(!state.folgas) state.folgas = {};
   const onFolga = state.folgas[activeDateKey] || [];
-  picker.innerHTML = Object.entries(COLLABS)
-    .filter(([k]) => k !== 'todos')
+  picker.innerHTML = activeCollabEntries()
     .map(([k, info]) => {
       const entry = onFolga.find(e => folgaCollabKey(e) === k);
       const sel = !!entry;
@@ -5152,8 +5556,7 @@ function openMeetingRequest(){
   $('#meetingNote').value = '';
   const picker = $('#meetingCollabPicker');
   const candidates = [];
-  Object.entries(COLLABS).forEach(([k, info]) => {
-    if(k === 'todos' || k === me) return;
+  activeCollabEntries({ exclude: me }).forEach(([k, info]) => {
     candidates.push({ key:k, name:info.name, cssVar:info.cssVar });
   });
   // sempre incluir a admin (Suzana), exceto se for ela mesma criando
@@ -5198,8 +5601,7 @@ function openSubstituteModal(eventId){
   substituteTarget = null;
   $('#substituteReason').value = '';
   const picker = $('#substitutePicker');
-  picker.innerHTML = Object.entries(COLLABS)
-    .filter(([k]) => k !== 'todos' && k !== state.viewerAs)
+  picker.innerHTML = activeCollabEntries({ exclude: state.viewerAs })
     .map(([k, c]) => {
       const photo = c.photo ? `<img src="${c.photo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1.5px solid var(${c.cssVar})">` : '';
       return `<button class="pick" data-sub-pick="${k}" style="display:flex;align-items:center;gap:8px;padding:10px">${photo}${c.name}</button>`;
@@ -5532,7 +5934,7 @@ function openKudos(){
   const userKey = state.viewerAs || (state.role === 'admin' ? 'admin' : null);
   if(!userKey){ toast('Faça login'); return; }
   const sel = $('#kudosTo');
-  const opts = Object.entries(COLLABS).filter(([k]) => k !== 'todos' && k !== userKey)
+  const opts = activeCollabEntries({ exclude: userKey })
     .map(([k, c]) => `<option value="${k}">${c.name}</option>`).join('');
   sel.innerHTML = opts + (userKey === 'admin' ? '' : `<option value="admin">${ADMIN_USER.name} (Admin)</option>`);
   $('#kudosText').value = '';
@@ -5597,8 +5999,7 @@ function renderMsgContacts(){
   const wrap = $('#msgContactsList');
   if(!wrap || !userKey) return;
   const contacts = [];
-  Object.entries(COLLABS).forEach(([k, c]) => {
-    if(k === 'todos' || k === userKey) return;
+  activeCollabEntries({ exclude: userKey }).forEach(([k, c]) => {
     contacts.push({ key: k, name: c.name, photo: c.photo, cssVar: c.cssVar });
   });
   if(userKey !== 'admin') contacts.push({ key: 'admin', name: ADMIN_USER.name, photo: ADMIN_USER.photo, cssVar: null });
@@ -5883,6 +6284,14 @@ function bindEvents(){
   $('#historyBtn').addEventListener('click', openHistory);
   $('#statusBtn').addEventListener('click', openStatus);
   $('#settingsBtn').addEventListener('click', openSettings);
+  $('#manageTeamBtn').addEventListener('click', openTeam);
+  $('#teamAddBtn').addEventListener('click', addColaborador);
+  $('#teamList').addEventListener('click', e => {
+    const t = e.target.closest('[data-toggle]');
+    if(t) return toggleColaborador(t.dataset.toggle);
+    const r = e.target.closest('[data-recriar]');
+    if(r) return recriarAcesso(r.dataset.recriar);
+  });
   $('#printBtn').addEventListener('click', () => window.print());
   $('#exportBtn').addEventListener('click', exportJSON);
   $('#requestsBtn').addEventListener('click', openRequestsModal);
@@ -5941,7 +6350,7 @@ function bindEvents(){
     document.documentElement.setAttribute('data-theme', state.theme);
     // cores: so admin
     if(state.role === 'admin'){
-      Object.keys(COLLABS).filter(k => k !== 'todos').forEach(k => {
+      activeCollabs().forEach(k => {
         const input = document.getElementById('color-' + k);
         if(input && input.value){ state.customColors[k] = input.value; }
       });
@@ -5954,8 +6363,11 @@ function bindEvents(){
   $('#settingsReset').addEventListener('click', () => {
     if(state.role !== 'admin'){ toast('Apenas a gestora pode resetar cores'); return; }
     state.customColors = {};
-    ['--c-joao','--c-thayane','--c-lianda','--c-ravy','--c-sabrina','--c-joao-ink','--c-thayane-ink','--c-lianda-ink','--c-ravy-ink','--c-sabrina-ink']
-      .forEach(v => document.documentElement.style.removeProperty(v));
+    // derivado do roster: uma lista fixa deixaria a cor de quem a Suzana criou sobreviver ao reset
+    activeCollabs({ includeInativos:true }).forEach(k => {
+      document.documentElement.style.removeProperty('--c-' + k);
+      document.documentElement.style.removeProperty('--c-' + k + '-ink');
+    });
     save('customColors');
     toast('Cores resetadas');
     openSettings();
@@ -5998,14 +6410,19 @@ function bindEvents(){
 
 // ============ INIT ============
 (async () => {
+  // COLLABS nasce vazio e so e preenchido por loadAll(), que roda depois do login.
+  // Popular com o seed aqui garante que nada que rode antes disso veja uma equipe vazia.
+  rebuildCollabs();
   bindEvents();
 
   auth.onAuthStateChanged(async function(user){
     if(user){
-      const userInfo = authUserByEmail(user.email);
-      if(userInfo){
-        await loadAll();
-        applyUserRole(userInfo);
+      // loadAll() ANTES de resolver: a equipe mora no Firestore e so ela sabe quem
+      // existe. Aqui o usuario ja esta autenticado, entao ler calendarData e permitido.
+      await loadAll();
+      const r = resolveUser(user.email);
+      if(r.user){
+        applyUserRole(r.user);
         $('#loginModal').classList.remove('open');
         $('#appContent').style.display = '';
         startRealtimeSync();
@@ -6013,12 +6430,14 @@ function bindEvents(){
         initUserLocation();
         setTimeout(() => {
           requestNotificationPermission();
-          const userKey = userInfo.role === 'admin' ? 'admin' : userInfo.collabKey;
+          const userKey = r.user.role === 'admin' ? 'admin' : r.user.collabKey;
           registerOneSignalUser(userKey);
         }, 2000);
       } else {
-        auth.signOut();
-        openLogin();
+        await auth.signOut();
+        openLogin(r.erro === 'inativo'
+          ? 'Seu acesso foi encerrado. Fale com a Suzana.'
+          : 'Conta não reconhecida.');
       }
     } else {
       openLogin();
