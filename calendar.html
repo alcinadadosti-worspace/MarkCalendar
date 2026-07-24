@@ -337,6 +337,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 .msg-chat-header{padding:12px 16px;border-bottom:1.5px solid var(--muted);display:flex;align-items:center;gap:10px;background:var(--card)}
 .msg-back{display:none;border:none;background:transparent;font-size:20px;cursor:pointer;color:var(--ink);padding:4px 8px;border-radius:6px}
 .msg-back:hover{background:var(--bg-2)}
+.msg-sidebar-close{display:none}/* desktop: o X do cabecalho do chat basta */
 .msg-contact{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--muted);cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent}
 .msg-contact:hover{background:var(--bg-2)}
 .msg-contact.active{background:var(--bg-2);border-left:3px solid var(--ink)}
@@ -359,6 +360,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   .msg-layout.chat-open .msg-sidebar{display:none}
   .msg-layout.chat-open .msg-chat{display:flex;flex-direction:column;height:100dvh}
   .msg-back{display:block}
+  .msg-sidebar-close{display:flex;align-items:center;justify-content:center}
 }
 
 /* mention autocomplete */
@@ -1705,8 +1707,10 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
   <div class="modal wide" style="padding:0;overflow:hidden;max-width:720px">
     <div class="msg-layout">
       <div class="msg-sidebar" id="msgSidebar">
-        <div style="padding:16px 16px 8px;border-bottom:1.5px solid var(--muted)">
+        <div style="padding:16px 16px 8px;border-bottom:1.5px solid var(--muted);display:flex;align-items:center;justify-content:space-between;gap:10px">
           <h3 style="font-size:18px;margin:0">💬 Mensagens</h3>
+          <!-- so aparece no mobile: na lista de contatos o cabecalho do chat (com o X) fica escondido -->
+          <button class="icon-btn msg-sidebar-close" onclick="document.getElementById('messagesModal').classList.remove('open')" aria-label="Fechar" style="width:32px;height:32px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
         </div>
         <div id="msgContactsList" style="overflow-y:auto;flex:1"></div>
       </div>
@@ -1857,6 +1861,7 @@ body{min-height:100vh;padding:32px 40px;position:relative;overflow-x:hidden}
 <!-- ============ SETTINGS ============ -->
 <div class="modal-backdrop" id="settingsModal">
   <div class="modal">
+    <button class="modal-close-x" aria-label="Fechar">&times;</button>
     <h3>⚙️ Preferências</h3>
     <p class="sub">Personalize o calendário</p>
 
@@ -5371,7 +5376,7 @@ function addTaskAssign(){
   const collab = $('#taskCollabSelect').value;
   const priority = $('#taskPrioritySelect') ? $('#taskPrioritySelect').value : 'normal';
   const input = $('#taskAssignInput');
-  const text = input.value.trim();
+  const text = input.value.trim().replace(/\s*:$/, '');
   if(!text){ input.focus(); return; }
   formTasks.push({ id:uid(), collab, text, done:false, priority });
   input.value = '';
@@ -5482,7 +5487,8 @@ function renderFilaTarefas(){
 }
 
 function addTarefaFila(){
-  const texto = $('#tarefaTexto').value.trim();
+  // "Edição:" sem complemento entra como so "Edição" (a pessoa pulou o contexto)
+  const texto = $('#tarefaTexto').value.trim().replace(/\s*:$/, '');
   const input = $('#tarefaTexto');
   if(!texto){
     input.style.borderColor = 'var(--danger)';
@@ -6881,7 +6887,17 @@ function bindEvents(){
   $('#tarefaQuickPicker').addEventListener('click', e => {
     const b = e.target.closest('[data-tq]');
     if(!b) return;
-    $('#tarefaTexto').value = b.dataset.tq;
+    const inp = $('#tarefaTexto');
+    // Edicao pede contexto (edicao de que?): preenche o campo e espera o complemento
+    // em vez de mandar direto pra fila. + Adicionar ou Enter completam.
+    if(b.dataset.tq === 'Edição'){
+      inp.value = 'Edição: ';
+      inp.focus();
+      inp.setSelectionRange(inp.value.length, inp.value.length);
+      toast('Escreva do que é a edição e toque em + Adicionar');
+      return;
+    }
+    inp.value = b.dataset.tq;
     addTarefaFila();
   });
   $('#tarefaFila').addEventListener('click', e => {
@@ -6925,23 +6941,8 @@ function bindEvents(){
     if(back.id === 'modal'){ activeDateKey = null; editingEvent = null; }
   });
 
-  // close modals on backdrop / esc (exceto login quando nao logado)
-  $$('.modal-backdrop').forEach(m => {
-    m.addEventListener('click', e => {
-      if(e.target === m){
-        if(m.id === 'loginModal' && $('#appContent').style.display === 'none') return;
-        m.classList.remove('open');
-      }
-    });
-  });
-  document.addEventListener('keydown', e => {
-    if(e.key === 'Escape'){
-      $$('.modal-backdrop.open').forEach(m => {
-        if(m.id === 'loginModal' && $('#appContent').style.display === 'none') return;
-        m.classList.remove('open');
-      });
-    }
-  });
+  // Modais fecham SO pelo X (ou botoes explicitos). Clique fora e Esc nao fecham:
+  // um toque acidental fora do cartao descartava o formulario preenchido pela metade.
 
   // top icons
   $('#themeBtn').addEventListener('click', () => {
@@ -6997,6 +6998,15 @@ function bindEvents(){
     const priority = $('#taskPrioritySelect') ? $('#taskPrioritySelect').value : 'normal';
     if(btn.dataset.quick === '__custom'){
       $('#taskAssignInput').focus();
+      return;
+    }
+    // Edicao pede contexto (edicao de que?): preenche o campo e espera o complemento
+    if(btn.dataset.quick === 'Edição'){
+      const inp = $('#taskAssignInput');
+      inp.value = 'Edição: ';
+      inp.focus();
+      inp.setSelectionRange(inp.value.length, inp.value.length);
+      toast('Escreva do que é a edição e clique em + Adicionar');
       return;
     }
     formTasks.push({ id:uid(), collab, text: btn.dataset.quick, done: false, priority });
